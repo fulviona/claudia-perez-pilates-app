@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#3b2a74" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <title>Claudia Perez Pilates - Backoffice</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body data-app="admin">
+    <header class="app-header gradient">
+      <h1>Claudia Perez Pilates</h1>
+      <p>Backoffice studio</p>
+    </header>
+
+    <main class="container">
+      <section class="card nav-card">
+        <a href="./index.html">← Torna alla home accessi</a>
+      </section>
+
+      <section class="auth-card card" id="admin-auth">
+        <h2>Accesso Backoffice</h2>
+        <form id="admin-login-form">
+          <label>Username <input required name="username" type="text" value="admin" /></label>
+          <label>Password <input required name="password" type="password" placeholder="admin123" /></label>
+          <button type="submit">Accedi</button>
+        </form>
+        <p class="hint">Demo locale: utente <b>admin</b> / password <b>admin123</b></p>
+      </section>
+
+      <section id="admin-area" class="card hidden">
+        <div class="section-header">
+          <h2>Dashboard Backoffice</h2>
+          <button id="admin-logout" class="btn-secondary">Logout</button>
+        </div>
+        <div class="tabs">
+          <button class="admin-tab-btn active" data-admin-tab="users">Utenti</button>
+          <button class="admin-tab-btn" data-admin-tab="calendar">Calendario</button>
+          <button class="admin-tab-btn" data-admin-tab="settings">Configurazioni</button>
+          <button class="admin-tab-btn" data-admin-tab="analytics">Analytics</button>
+        </div>
+
+        <div id="admin-users" class="admin-tab active">
+          <h3>Utenti registrati</h3>
+          <div id="users-table"></div>
+        </div>
+
+        <div id="admin-calendar" class="admin-tab">
+          <h3>Gestione appuntamenti</h3>
+          <label>Data <input id="admin-date" type="date" /></label>
+          <div id="admin-slots" class="admin-slots"></div>
+          <h4>Tutti gli appuntamenti</h4>
+          <div id="admin-bookings"></div>
+        </div>
+
+        <div id="admin-settings" class="admin-tab">
+          <h3>Impostazioni disponibilità</h3>
+          <form id="availability-form">
+            <div class="grid">
+              <label>Apertura <input type="time" name="startHour" required /></label>
+              <label>Chiusura <input type="time" name="endHour" required /></label>
+              <label>Durata slot base (min) <input type="number" min="15" step="15" name="slotMinutes" required /></label>
+            </div>
+            <fieldset>
+              <legend>Giorni attivi</legend>
+              <div id="active-days"></div>
+            </fieldset>
+            <button type="submit">Salva impostazioni</button>
+          </form>
+
+          <h3>Corsi offerti</h3>
+          <form id="course-form" class="grid">
+            <input name="name" type="text" placeholder="Nome corso" required />
+            <input name="duration" type="number" min="15" step="15" placeholder="Durata (min)" required />
+            <input name="capacity" type="number" min="1" max="20" placeholder="Capienza" required />
+            <select name="mode" required>
+              <option value="group">Gruppo</option>
+              <option value="personal">Personal</option>
+            </select>
+            <button type="submit">Aggiungi corso</button>
+          </form>
+          <div id="courses-list"></div>
+        </div>
+
+        <div id="admin-analytics" class="admin-tab">
+          <h3>Analisi clienti e attività</h3>
+          <div id="analytics-overview" class="stats-grid"></div>
+          <h4>Dettaglio per cliente</h4>
+          <div id="analytics-users"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <small>Versione 2.0.0 - Powered by FulvioNa</small>
+    </footer>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

@@ -1,53 +1,57 @@
 # Claudia Perez Pilates - Booking App (No Install)
 
-Applicazione web demo per gestione prenotazioni clienti e backoffice studio Pilates, realizzata senza dipendenze esterne.
+Applicazione web (frontend-only) pronta per GitHub Pages, senza installazioni locali.
 
-## Caratteristiche implementate
+## Accessi separati
+
+- Home accessi: `index.html`
+- Area clienti (link dedicato): `client.html`
+- Backoffice admin (link dedicato): `admin.html`
+
+## Funzionalita principali
 
 - Registrazione cliente con:
   - nome, cognome, email, cellulare
+  - password scelta dal cliente
   - consenso privacy obbligatorio
   - consenso newsletter opzionale
-- Login cliente (email + cellulare)
-- Calendario mensile con giorni attivi configurabili
-- Prenotazione per tipo corso mostrando solo slot disponibili
-- Area cliente con elenco prenotazioni e annullo appuntamenti
-- Backoffice admin con:
-  - gestione utenti registrati e abilitazione prenotazioni
-  - calendario con slot liberi/occupati (colori diversi)
+- Login cliente con email + password
+- Calendario prenotazioni: selezione consentita solo su giorni disponibili da oggi in poi
+- Visualizzazione slot in base a disponibilita reale
+- Backoffice admin:
+  - abilitazione/disabilitazione utenti
+  - calendario con slot liberi/occupati
   - gestione appuntamenti (stato, annullo, spostamento)
-  - configurazione giorni attivi, orari studio, durata slot base
-  - gestione corsi (gruppo/personal, durata, capienza)
-- Sezione analytics:
+  - configurazione giorni attivi, orari e slot
+  - gestione corsi (durata, capienza, gruppo/personal)
+- Analytics base:
   - clienti registrati
-  - corsi prenotati, frequentati, no-show, annullati
-  - dettaglio metriche per cliente
+  - prenotati, presenti, no-show, annullati
+  - dettaglio per cliente
 
-## Accesso admin (demo)
+## PWA / WebApp mobile
+
+- `manifest.webmanifest` e `service-worker.js` inclusi
+- installabile su home del cellulare da browser compatibili (Chrome/Edge/Samsung Internet)
+- icona app: `icon.svg`
+
+## Credenziali admin demo
 
 - Username: `admin`
 - Password: `admin123`
 
-## Come eseguirla (senza installare nulla)
+## Pubblicazione GitHub Pages
 
-1. Apri il file `index.html` con un browser (Chrome, Edge, Firefox).
-2. I dati vengono salvati in `localStorage` del browser.
+1. Carica tutti i file della repository.
+2. Vai in `Settings -> Pages`.
+3. Seleziona:
+   - Source: `Deploy from a branch`
+   - Branch: `main`
+   - Folder: `/(root)`
+4. Salva e attendi il deploy.
 
-## Note importanti
+## Footer richiesto
 
-- Questa versione e una demo locale (frontend-only), quindi:
-  - non ha backend reale
-  - non ha database condiviso tra dispositivi
-  - non invia email/SMS reali
-- Per una versione produzione si puo migrare a stack con backend/API e database.
+In tutte le pagine e presente:
 
-## Pubblicazione su GitHub
-
-1. Crea una nuova repository su GitHub (es. `claudia-perez-pilates-app`).
-2. Carica questi file:
-   - `index.html`
-   - `styles.css`
-   - `app.js`
-   - `README.md`
-3. (Opzionale) abilita GitHub Pages per demo online:
-   - Settings -> Pages -> Deploy from branch -> `main` / root.
+`Versione 2.0.0 - Powered by FulvioNa`

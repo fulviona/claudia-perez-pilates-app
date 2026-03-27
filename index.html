@@ -3,161 +3,31 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Claudia Perez Pilates - Booking App</title>
+    <meta name="theme-color" content="#3b2a74" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <title>Claudia Perez Pilates - Accessi</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
-  <body>
-    <header class="app-header">
+  <body data-app="landing">
+    <header class="app-header gradient">
       <h1>Claudia Perez Pilates</h1>
-      <p>Prenotazioni clienti e backoffice studio</p>
+      <p>Prenotazioni smart per clienti e backoffice</p>
     </header>
 
     <main class="container">
-      <section class="auth-card card">
-        <div class="tabs">
-          <button class="tab-btn active" data-tab="register">Registrazione cliente</button>
-          <button class="tab-btn" data-tab="login">Accesso cliente</button>
-          <button class="tab-btn" data-tab="admin-login">Accesso backoffice</button>
-        </div>
-
-        <div class="tab-content active" id="register-tab">
-          <form id="register-form">
-            <div class="grid">
-              <label>Nome <input required name="firstName" type="text" /></label>
-              <label>Cognome <input required name="lastName" type="text" /></label>
-              <label>Email <input required name="email" type="email" /></label>
-              <label>Cellulare <input required name="phone" type="tel" /></label>
-            </div>
-            <label class="checkbox">
-              <input required name="privacyConsent" type="checkbox" />
-              Acconsento al trattamento privacy (obbligatorio)
-            </label>
-            <label class="checkbox">
-              <input name="newsletterConsent" type="checkbox" />
-              Desidero ricevere newsletter e promozioni
-            </label>
-            <button type="submit">Crea account</button>
-          </form>
-        </div>
-
-        <div class="tab-content" id="login-tab">
-          <form id="login-form">
-            <label>Email <input required name="email" type="email" /></label>
-            <label>Cellulare <input required name="phone" type="tel" /></label>
-            <button type="submit">Entra</button>
-          </form>
-        </div>
-
-        <div class="tab-content" id="admin-login-tab">
-          <form id="admin-login-form">
-            <label>Username <input required name="username" type="text" value="admin" /></label>
-            <label>Password <input required name="password" type="password" placeholder="admin123" /></label>
-            <button type="submit">Accedi al backoffice</button>
-          </form>
-          <p class="hint">Demo locale: utente <b>admin</b> / password <b>admin123</b></p>
-        </div>
-      </section>
-
-      <section id="client-area" class="card hidden">
-        <div class="section-header">
-          <h2>Area Cliente</h2>
-          <button id="client-logout" class="btn-secondary">Logout</button>
-        </div>
-        <p id="client-welcome"></p>
-        <p id="client-approval-status" class="status"></p>
-
-        <div class="calendar-controls">
-          <button id="prev-month">◀</button>
-          <h3 id="calendar-month-title"></h3>
-          <button id="next-month">▶</button>
-        </div>
-        <div id="calendar-grid" class="calendar-grid"></div>
-
-        <div class="booking-panel">
-          <h3>Prenota appuntamento</h3>
-          <p id="selected-day-label">Seleziona un giorno dal calendario.</p>
-          <label>
-            Tipo corso
-            <select id="course-select"></select>
-          </label>
-          <label>
-            Slot disponibili
-            <select id="slot-select"></select>
-          </label>
-          <button id="book-btn">Prenota</button>
-        </div>
-
-        <div>
-          <h3>I miei appuntamenti</h3>
-          <div id="my-bookings"></div>
-        </div>
-      </section>
-
-      <section id="admin-area" class="card hidden">
-        <div class="section-header">
-          <h2>Backoffice Studio</h2>
-          <button id="admin-logout" class="btn-secondary">Logout</button>
-        </div>
-        <div class="tabs">
-          <button class="admin-tab-btn active" data-admin-tab="users">Utenti</button>
-          <button class="admin-tab-btn" data-admin-tab="calendar">Calendario</button>
-          <button class="admin-tab-btn" data-admin-tab="settings">Configurazioni</button>
-          <button class="admin-tab-btn" data-admin-tab="analytics">Analytics</button>
-        </div>
-
-        <div id="admin-users" class="admin-tab active">
-          <h3>Utenti registrati</h3>
-          <div id="users-table"></div>
-        </div>
-
-        <div id="admin-calendar" class="admin-tab">
-          <h3>Gestione appuntamenti</h3>
-          <label>Data <input id="admin-date" type="date" /></label>
-          <div id="admin-slots" class="admin-slots"></div>
-          <h4>Tutti gli appuntamenti</h4>
-          <div id="admin-bookings"></div>
-        </div>
-
-        <div id="admin-settings" class="admin-tab">
-          <h3>Impostazioni disponibilità</h3>
-          <form id="availability-form">
-            <div class="grid">
-              <label>Apertura <input type="time" name="startHour" required /></label>
-              <label>Chiusura <input type="time" name="endHour" required /></label>
-              <label>Durata slot base (min) <input type="number" min="15" step="15" name="slotMinutes" required /></label>
-            </div>
-            <fieldset>
-              <legend>Giorni attivi</legend>
-              <div id="active-days"></div>
-            </fieldset>
-            <button type="submit">Salva impostazioni</button>
-          </form>
-
-          <h3>Corsi offerti</h3>
-          <form id="course-form" class="grid">
-            <input name="name" type="text" placeholder="Nome corso" required />
-            <input name="duration" type="number" min="15" step="15" placeholder="Durata (min)" required />
-            <input name="capacity" type="number" min="1" max="20" placeholder="Capienza" required />
-            <select name="mode" required>
-              <option value="group">Gruppo</option>
-              <option value="personal">Personal</option>
-            </select>
-            <button type="submit">Aggiungi corso</button>
-          </form>
-          <div id="courses-list"></div>
-        </div>
-
-        <div id="admin-analytics" class="admin-tab">
-          <h3>Analisi clienti e attività</h3>
-          <div id="analytics-overview" class="stats-grid"></div>
-          <h4>Dettaglio per cliente</h4>
-          <div id="analytics-users"></div>
+      <section class="card hero-card">
+        <h2>Scegli il tuo accesso</h2>
+        <p>Accessi separati con link dedicati:</p>
+        <div class="access-links">
+          <a class="cta-btn" href="./client.html">Area Clienti</a>
+          <a class="cta-btn secondary" href="./admin.html">Backoffice Studio</a>
         </div>
       </section>
     </main>
 
     <footer>
-      <small>Versione demo locale senza backend server (dati salvati nel browser)</small>
+      <small>Versione 2.0.0 - Powered by FulvioNa</small>
     </footer>
 
     <script src="./app.js"></script>

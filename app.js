@@ -1,4 +1,4 @@
-const STORAGE_KEY = "claudia-perez-pilates-db-v1";
+const STORAGE_KEY = "claudia-perez-pilates-db-v2";
 const DEFAULT_ADMIN = { username: "admin", password: "admin123" };
 const WEEK_DAYS = [
   { id: 0, label: "Dom" },
@@ -10,11 +10,14 @@ const WEEK_DAYS = [
   { id: 6, label: "Sab" },
 ];
 
+const APP_MODE = document.body.dataset.app || "landing";
+
 let state = {
   currentUserId: null,
-  isAdmin: false,
+  adminLogged: false,
   selectedDate: null,
   calendarCursor: new Date(),
+  deferredInstallPrompt: null,
 };
 
 function initialDb() {
@@ -59,15 +62,17 @@ function qsa(sel) {
   return [...document.querySelectorAll(sel)];
 }
 
+function todayString() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return formatDate(d);
+}
+
 function formatDate(d) {
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
-}
-
-function combineDateTime(dateStr, timeStr) {
-  return new Date(`${dateStr}T${timeStr}:00`);
 }
 
 function toMinutes(timeStr) {
@@ -90,8 +95,16 @@ function isDayActive(dateStr) {
   return db.settings.activeDays.includes(day);
 }
 
+function isFutureOrToday(dateStr) {
+  return dateStr >= todayString();
+}
+
+function canBookDate(dateStr) {
+  return isDayActive(dateStr) && isFutureOrToday(dateStr);
+}
+
 function buildSlotsForCourse(dateStr, course) {
-  if (!isDayActive(dateStr)) return [];
+  if (!canBookDate(dateStr)) return [];
   const slots = [];
   let current = db.settings.startHour;
   const endMins = toMinutes(db.settings.endHour);
@@ -139,98 +152,133 @@ function setupTabs() {
   });
 }
 
-function renderAuthAreas() {
-  const clientArea = qs("#client-area");
-  const adminArea = qs("#admin-area");
-  if (state.isAdmin) {
-    clientArea.classList.add("hidden");
-    adminArea.classList.remove("hidden");
-    renderAdminAll();
-    return;
-  }
-  if (state.currentUserId) {
-    adminArea.classList.add("hidden");
-    clientArea.classList.remove("hidden");
-    renderClientAll();
-    return;
-  }
-  clientArea.classList.add("hidden");
-  adminArea.classList.add("hidden");
-}
-
-function handleRegister() {
-  qs("#register-form").addEventListener("submit", (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const email = String(formData.get("email")).trim().toLowerCase();
-    const phone = String(formData.get("phone")).trim();
-
-    const exists = db.users.some((u) => u.email === email);
-    if (exists) {
-      alert("Email gia registrata.");
-      return;
-    }
-
-    db.users.push({
-      id: crypto.randomUUID(),
-      firstName: String(formData.get("firstName")).trim(),
-      lastName: String(formData.get("lastName")).trim(),
-      email,
-      phone,
-      privacyConsent: formData.get("privacyConsent") === "on",
-      newsletterConsent: formData.get("newsletterConsent") === "on",
-      approved: false,
-      createdAt: new Date().toISOString(),
-    });
-    saveDb();
-    e.target.reset();
-    alert("Registrazione completata. Attendi l'abilitazione nel backoffice.");
-    qsa(".tab-btn")[1].click();
-  });
-}
-
-function handleLogin() {
-  qs("#login-form").addEventListener("submit", (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const email = String(formData.get("email")).trim().toLowerCase();
-    const phone = String(formData.get("phone")).trim();
-    const user = db.users.find((u) => u.email === email && u.phone === phone);
-    if (!user) {
-      alert("Credenziali non valide.");
-      return;
-    }
-    state.currentUserId = user.id;
-    state.isAdmin = false;
-    state.selectedDate = null;
-    renderAuthAreas();
-  });
-}
-
-function handleAdminLogin() {
-  qs("#admin-login-form").addEventListener("submit", (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    if (
-      String(formData.get("username")).trim() === DEFAULT_ADMIN.username &&
-      String(formData.get("password")).trim() === DEFAULT_ADMIN.password
-    ) {
-      state.currentUserId = null;
-      state.isAdmin = true;
-      renderAuthAreas();
-    } else {
-      alert("Credenziali admin non valide.");
-    }
-  });
+function openTabById(tabId) {
+  qsa(".tab-btn").forEach((x) => x.classList.remove("active"));
+  qsa(".tab-content").forEach((x) => x.classList.remove("active"));
+  const tab = qs(`#${tabId}`);
+  if (tab) tab.classList.add("active");
 }
 
 function monthName(date) {
   return date.toLocaleDateString("it-IT", { month: "long", year: "numeric" });
 }
 
+function renderClientAuthVisibility() {
+  const authCard = qs(".auth-card");
+  const clientArea = qs("#client-area");
+  if (!authCard || !clientArea) return;
+  if (state.currentUserId) {
+    authCard.classList.add("hidden");
+    clientArea.classList.remove("hidden");
+    renderClientAll();
+  } else {
+    authCard.classList.remove("hidden");
+    clientArea.classList.add("hidden");
+  }
+}
+
+function handleRegister() {
+  const form = qs("#register-form");
+  if (!form) return;
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const email = String(fd.get("email")).trim().toLowerCase();
+    const password = String(fd.get("password")).trim();
+    if (password.length < 6) {
+      alert("La password deve avere almeno 6 caratteri.");
+      return;
+    }
+    if (db.users.some((u) => u.email === email)) {
+      alert("Email gia registrata.");
+      return;
+    }
+    db.users.push({
+      id: crypto.randomUUID(),
+      firstName: String(fd.get("firstName")).trim(),
+      lastName: String(fd.get("lastName")).trim(),
+      email,
+      phone: String(fd.get("phone")).trim(),
+      password,
+      privacyConsent: fd.get("privacyConsent") === "on",
+      newsletterConsent: fd.get("newsletterConsent") === "on",
+      approved: false,
+      createdAt: new Date().toISOString(),
+    });
+    saveDb();
+    e.target.reset();
+    alert("Registrazione completata. Attendi l'abilitazione dal backoffice.");
+    const loginTab = qsa(".tab-btn").find((b) => b.dataset.tab === "login");
+    if (loginTab) loginTab.click();
+  });
+}
+
+function handleClientLogin() {
+  const form = qs("#login-form");
+  if (!form) return;
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const email = String(fd.get("email")).trim().toLowerCase();
+    const password = String(fd.get("password")).trim();
+    const user = db.users.find((u) => u.email === email && u.password === password);
+    if (!user) {
+      alert("Credenziali non valide.");
+      return;
+    }
+    state.currentUserId = user.id;
+    state.selectedDate = null;
+    state.calendarCursor = new Date();
+    renderClientAuthVisibility();
+  });
+}
+
+function setupResetPasswordDemo() {
+  const openBtn = qs("#open-reset-password");
+  const backBtn = qs("#back-to-login");
+  const form = qs("#reset-password-form");
+  if (!openBtn || !backBtn || !form) return;
+
+  openBtn.addEventListener("click", () => {
+    openTabById("reset-tab");
+  });
+
+  backBtn.addEventListener("click", () => {
+    const loginTabBtn = qsa(".tab-btn").find((b) => b.dataset.tab === "login");
+    if (loginTabBtn) {
+      loginTabBtn.click();
+    } else {
+      openTabById("login-tab");
+    }
+  });
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const email = String(fd.get("email")).trim().toLowerCase();
+    const newPassword = String(fd.get("newPassword")).trim();
+    if (newPassword.length < 6) {
+      alert("La nuova password deve avere almeno 6 caratteri.");
+      return;
+    }
+    const user = db.users.find((u) => u.email === email);
+    if (!user) {
+      alert("Email non trovata.");
+      return;
+    }
+    user.password = newPassword;
+    saveDb();
+    form.reset();
+    alert("Password aggiornata. Ora puoi accedere.");
+    const loginTabBtn = qsa(".tab-btn").find((b) => b.dataset.tab === "login");
+    if (loginTabBtn) loginTabBtn.click();
+  });
+}
+
 function renderClientCalendar() {
   const grid = qs("#calendar-grid");
   const title = qs("#calendar-month-title");
+  if (!grid || !title) return;
   const cursor = state.calendarCursor;
   title.textContent = monthName(cursor);
   grid.innerHTML = "";
@@ -259,12 +307,15 @@ function renderClientCalendar() {
     cell.className = "day-cell";
     cell.type = "button";
     cell.textContent = String(d);
-    if (isDayActive(thisDateStr)) {
+    if (canBookDate(thisDateStr)) {
       cell.classList.add("active-day");
       cell.addEventListener("click", () => {
         state.selectedDate = thisDateStr;
         renderClientAll();
       });
+    } else if (!isFutureOrToday(thisDateStr)) {
+      cell.classList.add("past-day");
+      cell.disabled = true;
     }
     if (state.selectedDate === thisDateStr) {
       cell.classList.add("selected");
@@ -278,12 +329,14 @@ function renderClientBookingOptions() {
   const courseSelect = qs("#course-select");
   const slotSelect = qs("#slot-select");
   const bookBtn = qs("#book-btn");
+  if (!selectedLabel || !courseSelect || !slotSelect || !bookBtn) return;
+
   courseSelect.innerHTML = db.courses
     .map((c) => `<option value="${c.id}">${c.name} (${c.mode}, ${c.duration}m, cap.${c.capacity})</option>`)
     .join("");
 
   if (!state.selectedDate) {
-    selectedLabel.textContent = "Seleziona un giorno dal calendario.";
+    selectedLabel.textContent = "Seleziona un giorno disponibile dal calendario.";
     slotSelect.innerHTML = "";
     bookBtn.disabled = true;
     return;
@@ -294,12 +347,12 @@ function renderClientBookingOptions() {
   const slots = selectedCourseId ? availableSlots(state.selectedDate, selectedCourseId) : [];
   slotSelect.innerHTML = slots.map((s) => `<option value="${s}">${s}</option>`).join("");
   bookBtn.disabled = slots.length === 0;
-
   courseSelect.onchange = () => renderClientBookingOptions();
 }
 
 function renderMyBookings() {
   const target = qs("#my-bookings");
+  if (!target) return;
   const mine = db.appointments
     .filter((a) => a.userId === state.currentUserId)
     .sort((a, b) => new Date(`${a.date}T${a.startTime}`) - new Date(`${b.date}T${b.startTime}`));
@@ -308,12 +361,8 @@ function renderMyBookings() {
     ? mine
         .map((a) => {
           const course = db.courses.find((c) => c.id === a.courseId);
-          return `
-          <div class="list-item">
-            <div>
-              <b>${a.date} ${a.startTime}</b> - ${course?.name || "Corso rimosso"}
-              <span class="badge ${a.status}">${a.status}</span>
-            </div>
+          return `<div class="list-item">
+            <div><b>${a.date} ${a.startTime}</b> - ${course?.name || "Corso rimosso"} <span class="badge ${a.status}">${a.status}</span></div>
             ${a.status === "booked" ? `<button data-cancel="${a.id}">Annulla</button>` : ""}
           </div>`;
         })
@@ -334,17 +383,22 @@ function renderMyBookings() {
 function renderClientAll() {
   const user = db.users.find((u) => u.id === state.currentUserId);
   if (!user) return;
-  qs("#client-welcome").textContent = `Ciao ${user.firstName} ${user.lastName}`;
+  const welcome = qs("#client-welcome");
   const status = qs("#client-approval-status");
-  status.textContent = user.approved
-    ? "Account abilitato alla prenotazione."
-    : "Account in attesa di approvazione dal backoffice.";
-  status.className = `status ${user.approved ? "approved" : "pending"}`;
+  if (welcome) welcome.textContent = `Ciao ${user.firstName} ${user.lastName}`;
+  if (status) {
+    status.textContent = user.approved
+      ? "Account abilitato alla prenotazione."
+      : "Account in attesa di approvazione dal backoffice.";
+    status.className = `status ${user.approved ? "approved" : "pending"}`;
+  }
   renderClientCalendar();
   renderClientBookingOptions();
   renderMyBookings();
 
-  qs("#book-btn").onclick = () => {
+  const bookBtn = qs("#book-btn");
+  if (!bookBtn) return;
+  bookBtn.onclick = () => {
     if (!user.approved) {
       alert("Il tuo account non e ancora abilitato alle prenotazioni.");
       return;
@@ -352,9 +406,13 @@ function renderClientAll() {
     const courseId = qs("#course-select").value;
     const startTime = qs("#slot-select").value;
     if (!state.selectedDate || !courseId || !startTime) return;
+    if (!isFutureOrToday(state.selectedDate)) {
+      alert("Puoi prenotare solo da oggi in poi.");
+      return;
+    }
     const stillAvailable = availableSlots(state.selectedDate, courseId).includes(startTime);
     if (!stillAvailable) {
-      alert("Slot non piu disponibile, aggiorna la pagina.");
+      alert("Slot non piu disponibile.");
       return;
     }
     db.appointments.push({
@@ -372,24 +430,28 @@ function renderClientAll() {
 }
 
 function setupClientCalendarNav() {
-  qs("#prev-month").addEventListener("click", () => {
-    state.calendarCursor = new Date(state.calendarCursor.getFullYear(), state.calendarCursor.getMonth() - 1, 1);
-    renderClientAll();
-  });
-  qs("#next-month").addEventListener("click", () => {
-    state.calendarCursor = new Date(state.calendarCursor.getFullYear(), state.calendarCursor.getMonth() + 1, 1);
-    renderClientAll();
-  });
+  const prev = qs("#prev-month");
+  const next = qs("#next-month");
+  if (prev) {
+    prev.addEventListener("click", () => {
+      state.calendarCursor = new Date(state.calendarCursor.getFullYear(), state.calendarCursor.getMonth() - 1, 1);
+      renderClientAll();
+    });
+  }
+  if (next) {
+    next.addEventListener("click", () => {
+      state.calendarCursor = new Date(state.calendarCursor.getFullYear(), state.calendarCursor.getMonth() + 1, 1);
+      renderClientAll();
+    });
+  }
 }
 
-function setupLogout() {
-  qs("#client-logout").addEventListener("click", () => {
+function setupClientLogout() {
+  const btn = qs("#client-logout");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
     state.currentUserId = null;
-    renderAuthAreas();
-  });
-  qs("#admin-logout").addEventListener("click", () => {
-    state.isAdmin = false;
-    renderAuthAreas();
+    renderClientAuthVisibility();
   });
 }
 
@@ -406,41 +468,37 @@ function setupAdminTabs() {
 
 function renderUsersTable() {
   const el = qs("#users-table");
+  if (!el) return;
   if (!db.users.length) {
     el.innerHTML = "<p>Nessun utente registrato.</p>";
     return;
   }
   el.innerHTML = db.users
     .map(
-      (u) => `
-    <div class="list-item">
-      <div>
-        <b>${u.firstName} ${u.lastName}</b> - ${u.email} - ${u.phone}<br />
-        Privacy: ${u.privacyConsent ? "si" : "no"} | Newsletter: ${u.newsletterConsent ? "si" : "no"}
-      </div>
-      <button data-approve="${u.id}">
-        ${u.approved ? "Disabilita prenotazioni" : "Abilita prenotazioni"}
-      </button>
+      (u) => `<div class="list-item">
+      <div><b>${u.firstName} ${u.lastName}</b> - ${u.email} - ${u.phone}<br/>Privacy: ${u.privacyConsent ? "si" : "no"} | Newsletter: ${u.newsletterConsent ? "si" : "no"}</div>
+      <button data-approve="${u.id}">${u.approved ? "Disabilita prenotazioni" : "Abilita prenotazioni"}</button>
     </div>`
     )
     .join("");
+
   qsa("[data-approve]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const user = db.users.find((u) => u.id === btn.dataset.approve);
       if (!user) return;
       user.approved = !user.approved;
       saveDb();
-      renderUsersTable();
-      renderAnalytics();
+      renderAdminAll();
     });
   });
 }
 
 function renderAdminSlots() {
   const dateInput = qs("#admin-date");
+  const slotsBox = qs("#admin-slots");
+  if (!dateInput || !slotsBox) return;
   if (!dateInput.value) dateInput.value = formatDate(new Date());
   const date = dateInput.value;
-  const slotsBox = qs("#admin-slots");
   if (!isDayActive(date)) {
     slotsBox.innerHTML = "<p>Giorno non attivo.</p>";
     return;
@@ -459,18 +517,15 @@ function renderAdminSlots() {
 
 function renderAdminBookings() {
   const box = qs("#admin-bookings");
+  if (!box) return;
   const all = [...db.appointments].sort((a, b) => new Date(`${a.date}T${a.startTime}`) - new Date(`${b.date}T${b.startTime}`));
   box.innerHTML = all.length
     ? all
         .map((a) => {
           const user = db.users.find((u) => u.id === a.userId);
           const course = db.courses.find((c) => c.id === a.courseId);
-          return `
-          <div class="list-item">
-            <div>
-              <b>${a.date} ${a.startTime}</b> - ${course?.name || "Corso rimosso"} - ${user?.firstName || "?"} ${user?.lastName || ""}
-              <span class="badge ${a.status}">${a.status}</span>
-            </div>
+          return `<div class="list-item">
+            <div><b>${a.date} ${a.startTime}</b> - ${course?.name || "Corso rimosso"} - ${user?.firstName || "?"} ${user?.lastName || ""} <span class="badge ${a.status}">${a.status}</span></div>
             <div>
               <select data-status="${a.id}">
                 <option ${a.status === "booked" ? "selected" : ""} value="booked">prenotato</option>
@@ -515,6 +570,7 @@ function renderAdminBookings() {
 
 function renderActiveDays() {
   const wrap = qs("#active-days");
+  if (!wrap) return;
   wrap.innerHTML = WEEK_DAYS.map(
     (d) =>
       `<label class="checkbox"><input type="checkbox" value="${d.id}" ${db.settings.activeDays.includes(d.id) ? "checked" : ""} />${d.label}</label>`
@@ -523,6 +579,7 @@ function renderActiveDays() {
 
 function renderCoursesList() {
   const box = qs("#courses-list");
+  if (!box) return;
   box.innerHTML = db.courses
     .map(
       (c) => `<div class="list-item">
@@ -540,39 +597,42 @@ function renderCoursesList() {
       }
       db.courses = db.courses.filter((c) => c.id !== btn.dataset.deleteCourse);
       saveDb();
-      renderCoursesList();
+      renderAdminAll();
     });
   });
 }
 
 function renderAnalytics() {
+  const overview = qs("#analytics-overview");
+  const usersBox = qs("#analytics-users");
+  if (!overview || !usersBox) return;
   const totalUsers = db.users.length;
   const totalBooked = db.appointments.filter((a) => a.status === "booked").length;
   const totalCompleted = db.appointments.filter((a) => a.status === "completed").length;
   const totalNoShow = db.appointments.filter((a) => a.status === "no-show").length;
   const totalCancelled = db.appointments.filter((a) => a.status === "cancelled").length;
-
-  qs("#analytics-overview").innerHTML = `
+  overview.innerHTML = `
     <div class="stat-card"><b>Clienti registrati</b><br/>${totalUsers}</div>
     <div class="stat-card"><b>Corsi prenotati attivi</b><br/>${totalBooked}</div>
     <div class="stat-card"><b>Corsi frequentati</b><br/>${totalCompleted}</div>
     <div class="stat-card"><b>No-show</b><br/>${totalNoShow}</div>
     <div class="stat-card"><b>Annullati</b><br/>${totalCancelled}</div>
   `;
-
-  qs("#analytics-users").innerHTML = db.users
-    .map((u) => {
-      const mine = db.appointments.filter((a) => a.userId === u.id);
-      const booked = mine.filter((a) => a.status === "booked").length;
-      const completed = mine.filter((a) => a.status === "completed").length;
-      const noShow = mine.filter((a) => a.status === "no-show").length;
-      return `<div class="list-item"><div><b>${u.firstName} ${u.lastName}</b> - ${u.email}</div><div>Prenotati: ${booked} | Presenti: ${completed} | No-show: ${noShow}</div></div>`;
-    })
-    .join("") || "<p>Nessun dato disponibile.</p>";
+  usersBox.innerHTML =
+    db.users
+      .map((u) => {
+        const mine = db.appointments.filter((a) => a.userId === u.id);
+        const booked = mine.filter((a) => a.status === "booked").length;
+        const completed = mine.filter((a) => a.status === "completed").length;
+        const noShow = mine.filter((a) => a.status === "no-show").length;
+        return `<div class="list-item"><div><b>${u.firstName} ${u.lastName}</b> - ${u.email}</div><div>Prenotati: ${booked} | Presenti: ${completed} | No-show: ${noShow}</div></div>`;
+      })
+      .join("") || "<p>Nessun dato disponibile.</p>";
 }
 
 function renderSettingsForm() {
   const form = qs("#availability-form");
+  if (!form) return;
   form.startHour.value = db.settings.startHour;
   form.endHour.value = db.settings.endHour;
   form.slotMinutes.value = db.settings.slotMinutes;
@@ -589,49 +649,150 @@ function renderAdminAll() {
 }
 
 function setupAdminEvents() {
-  qs("#admin-date").addEventListener("change", renderAdminSlots);
+  const dateInput = qs("#admin-date");
+  if (dateInput) dateInput.addEventListener("change", renderAdminSlots);
 
-  qs("#availability-form").addEventListener("submit", (e) => {
+  const availabilityForm = qs("#availability-form");
+  if (availabilityForm) {
+    availabilityForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const selectedDays = qsa("#active-days input:checked").map((x) => Number(x.value));
+      db.settings = {
+        startHour: String(fd.get("startHour")),
+        endHour: String(fd.get("endHour")),
+        slotMinutes: Number(fd.get("slotMinutes")),
+        activeDays: selectedDays,
+      };
+      saveDb();
+      alert("Impostazioni salvate.");
+      renderAdminAll();
+    });
+  }
+
+  const courseForm = qs("#course-form");
+  if (courseForm) {
+    courseForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      db.courses.push({
+        id: crypto.randomUUID(),
+        name: String(fd.get("name")).trim(),
+        duration: Number(fd.get("duration")),
+        capacity: Number(fd.get("capacity")),
+        mode: String(fd.get("mode")),
+      });
+      saveDb();
+      e.target.reset();
+      renderAdminAll();
+    });
+  }
+}
+
+function setupAdminLogin() {
+  const auth = qs("#admin-auth");
+  const area = qs("#admin-area");
+  const form = qs("#admin-login-form");
+  const logout = qs("#admin-logout");
+  if (!auth || !area || !form || !logout) return;
+
+  const refresh = () => {
+    if (state.adminLogged) {
+      auth.classList.add("hidden");
+      area.classList.remove("hidden");
+      renderAdminAll();
+    } else {
+      auth.classList.remove("hidden");
+      area.classList.add("hidden");
+    }
+  };
+
+  form.addEventListener("submit", (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    const selectedDays = qsa("#active-days input:checked").map((x) => Number(x.value));
-    db.settings = {
-      startHour: String(fd.get("startHour")),
-      endHour: String(fd.get("endHour")),
-      slotMinutes: Number(fd.get("slotMinutes")),
-      activeDays: selectedDays,
-    };
-    saveDb();
-    alert("Impostazioni salvate.");
-    renderAdminAll();
+    const ok =
+      String(fd.get("username")).trim() === DEFAULT_ADMIN.username &&
+      String(fd.get("password")).trim() === DEFAULT_ADMIN.password;
+    if (!ok) {
+      alert("Credenziali admin non valide.");
+      return;
+    }
+    state.adminLogged = true;
+    refresh();
   });
 
-  qs("#course-form").addEventListener("submit", (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    db.courses.push({
-      id: crypto.randomUUID(),
-      name: String(fd.get("name")).trim(),
-      duration: Number(fd.get("duration")),
-      capacity: Number(fd.get("capacity")),
-      mode: String(fd.get("mode")),
-    });
-    saveDb();
-    e.target.reset();
-    renderAdminAll();
+  logout.addEventListener("click", () => {
+    state.adminLogged = false;
+    refresh();
+  });
+
+  refresh();
+}
+
+function setupPwa() {
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("./service-worker.js").catch(() => {});
+  }
+}
+
+function setupInstallPrompt() {
+  if (APP_MODE !== "client") return;
+  const banner = qs("#install-banner");
+  const installBtn = qs("#install-app-btn");
+  const dismissBtn = qs("#dismiss-install-btn");
+  if (!banner || !installBtn || !dismissBtn) return;
+
+  const dismissed = localStorage.getItem("install-banner-dismissed") === "1";
+  if (dismissed) return;
+
+  window.addEventListener("beforeinstallprompt", (event) => {
+    event.preventDefault();
+    state.deferredInstallPrompt = event;
+    banner.classList.remove("hidden");
+  });
+
+  installBtn.addEventListener("click", async () => {
+    if (!state.deferredInstallPrompt) {
+      alert("Su iPhone usa Condividi -> Aggiungi a schermata Home.");
+      return;
+    }
+    state.deferredInstallPrompt.prompt();
+    try {
+      await state.deferredInstallPrompt.userChoice;
+    } catch (_err) {
+      // ignore
+    }
+    state.deferredInstallPrompt = null;
+    banner.classList.add("hidden");
+  });
+
+  dismissBtn.addEventListener("click", () => {
+    localStorage.setItem("install-banner-dismissed", "1");
+    banner.classList.add("hidden");
   });
 }
 
-function boot() {
+function bootClient() {
   setupTabs();
-  setupAdminTabs();
   handleRegister();
-  handleLogin();
-  handleAdminLogin();
+  handleClientLogin();
+  setupResetPasswordDemo();
   setupClientCalendarNav();
-  setupLogout();
+  setupClientLogout();
+  renderClientAuthVisibility();
+}
+
+function bootAdmin() {
+  setupAdminTabs();
   setupAdminEvents();
-  renderAuthAreas();
+  setupAdminLogin();
+}
+
+function boot() {
+  setupPwa();
+  setupInstallPrompt();
+  if (APP_MODE === "client") bootClient();
+  if (APP_MODE === "admin") bootAdmin();
 }
 
 boot();

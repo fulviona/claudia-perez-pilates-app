@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#3b2a74" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <title>Claudia Perez Pilates - Area Clienti</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body data-app="client">
+    <header class="app-header gradient">
+      <h1>Claudia Perez Pilates</h1>
+      <p>Area Clienti</p>
+    </header>
+
+    <main class="container">
+      <section id="install-banner" class="card install-banner hidden">
+        <div>
+          <b>Installa l'app sul telefono</b>
+          <p>Aggiungi Claudia Perez Pilates alla home per accesso rapido.</p>
+        </div>
+        <div class="install-actions">
+          <button id="install-app-btn">Aggiungi alla Home</button>
+          <button id="dismiss-install-btn" class="btn-secondary">Chiudi</button>
+        </div>
+      </section>
+
+      <section class="card nav-card">
+        <a href="./index.html">← Torna alla home accessi</a>
+      </section>
+
+      <section class="auth-card card">
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="register">Registrazione cliente</button>
+          <button class="tab-btn" data-tab="login">Accesso cliente</button>
+        </div>
+
+        <div class="tab-content active" id="register-tab">
+          <form id="register-form">
+            <div class="grid">
+              <label>Nome <input required name="firstName" type="text" /></label>
+              <label>Cognome <input required name="lastName" type="text" /></label>
+              <label>Email <input required name="email" type="email" /></label>
+              <label>Cellulare <input required name="phone" type="tel" /></label>
+              <label>Password <input required name="password" type="password" minlength="6" /></label>
+            </div>
+            <label class="checkbox">
+              <input required name="privacyConsent" type="checkbox" />
+              Acconsento al trattamento privacy (obbligatorio)
+            </label>
+            <label class="checkbox">
+              <input name="newsletterConsent" type="checkbox" />
+              Desidero ricevere newsletter e promozioni
+            </label>
+            <button type="submit">Crea account</button>
+          </form>
+        </div>
+
+        <div class="tab-content" id="login-tab">
+          <form id="login-form">
+            <label>Email <input required name="email" type="email" /></label>
+            <label>Password <input required name="password" type="password" /></label>
+            <button type="submit">Entra</button>
+          </form>
+          <button id="open-reset-password" class="link-btn" type="button">Hai dimenticato la password?</button>
+        </div>
+
+        <div class="tab-content" id="reset-tab">
+          <form id="reset-password-form">
+            <label>Email registrata <input required name="email" type="email" /></label>
+            <label>Nuova password <input required name="newPassword" type="password" minlength="6" /></label>
+            <button type="submit">Reimposta password</button>
+          </form>
+          <button id="back-to-login" class="link-btn" type="button">Torna al login</button>
+        </div>
+      </section>
+
+      <section id="client-area" class="card hidden">
+        <div class="section-header">
+          <h2>Le tue prenotazioni</h2>
+          <button id="client-logout" class="btn-secondary">Logout</button>
+        </div>
+        <p id="client-welcome"></p>
+        <p id="client-approval-status" class="status"></p>
+
+        <div class="calendar-controls">
+          <button id="prev-month">◀</button>
+          <h3 id="calendar-month-title"></h3>
+          <button id="next-month">▶</button>
+        </div>
+        <div id="calendar-grid" class="calendar-grid"></div>
+
+        <div class="booking-panel">
+          <h3>Prenota appuntamento</h3>
+          <p id="selected-day-label">Seleziona un giorno disponibile dal calendario.</p>
+          <label>
+            Tipo corso
+            <select id="course-select"></select>
+          </label>
+          <label>
+            Slot disponibili
+            <select id="slot-select"></select>
+          </label>
+          <button id="book-btn">Prenota</button>
+        </div>
+
+        <div>
+          <h3>I miei appuntamenti</h3>
+          <div id="my-bookings"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <small>Versione 2.0.0 - Powered by FulvioNa</small>
+    </footer>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
