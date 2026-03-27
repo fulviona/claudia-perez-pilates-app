@@ -35,6 +35,19 @@ Applicazione web (frontend-only) pronta per GitHub Pages, senza installazioni lo
 - installabile su home del cellulare da browser compatibili (Chrome/Edge/Samsung Internet)
 - icona app: `icon.svg`
 
+## Struttura progetto (refactor)
+
+- `src/main.js` bootstrap applicazione
+- `src/features/` logica separata cliente/admin
+- `src/core/` storage e regole calendario
+- `src/utils/` helper DOM/date
+- `src/components/` frammenti UI riusabili
+- `src/types/` contratti JSDoc / tipi
+- `src/api/` adapter API demo e punto estensione TypeScript
+- `src/pwa/` install prompt e service worker setup
+
+Dettagli refactor: `ARCHITECTURE.md`
+
 ## Credenziali admin demo
 
 - Username: `admin`

@@ -1,11 +1,19 @@
-const CACHE_NAME = "claudia-perez-pilates-v2";
+const CACHE_NAME = "claudia-perez-pilates-v3";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./client.html",
   "./admin.html",
   "./styles.css",
-  "./app.js",
+  "./src/main.js",
+  "./src/features/client.js",
+  "./src/features/admin.js",
+  "./src/core/store.js",
+  "./src/core/calendar.js",
+  "./src/utils/dom.js",
+  "./src/utils/date.js",
+  "./src/components/index.js",
+  "./src/pwa/index.js",
   "./manifest.webmanifest",
   "./icon.svg",
 ];
