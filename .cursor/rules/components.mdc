@@ -1,0 +1,18 @@
+---
+description: UI component generation standards for src/components
+globs: src/components/**/*.{ts,tsx,js,jsx}
+alwaysApply: false
+---
+
+# Components Rule
+
+- Use functional components only.
+- Keep props typed (`type` or `interface` in TypeScript).
+- Export component from local `index.ts` barrel.
+- Keep imports ordered: external libs -> internal aliases -> relative imports.
+- Prefer Tailwind utility classes for spacing/layout (`p-*`, `m-*`, `gap-*`, `grid`, `flex`).
+- Use consistent spacing scale (4/8/12/16/24).
+- Keep UI components presentational; move stateful logic to hooks.
+- If using JavaScript, define `propTypes` and sensible `defaultProps`.
+- Add minimal accessibility defaults (`aria-*`, labels, semantic tags).
+- Avoid inline styles unless dynamic style cannot be expressed with utilities.

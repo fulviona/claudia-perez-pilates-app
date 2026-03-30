@@ -1,0 +1,24 @@
+# Global Project Rules
+
+## Style
+- Use TypeScript when adding new business logic modules.
+- Use JavaScript only for lightweight browser bootstrap files.
+- Prefer functional components and composition patterns.
+- Prefer TailwindCSS utility-first styling for new UI work.
+
+## Naming
+- Use CamelCase for feature file names (example: `BookingCalendar.tsx`).
+- Use PascalCase for UI components and exported component symbols.
+- Use lowerCamelCase for functions, variables, and hooks.
+
+## Structure
+- Keep source code in `src/`.
+- Every component should expose an `index.ts` barrel file.
+- Split domain logic by responsibility (`components`, `api`, `hooks`, `types`, `features`).
+
+## Testing
+- Use Jest + Testing Library for unit and UI tests.
+- Add tests for business logic and edge cases before merge.
+
+## Git
+- Follow Conventional Commits (e.g., `feat:`, `fix:`, `refactor:`, `chore:`).

@@ -1,0 +1,32 @@
+---
+description: API layer standards for src/api
+globs: src/api/**/*.{ts,tsx,js}
+alwaysApply: false
+---
+
+# API Rule
+
+- Centralize HTTP configuration in a single Axios client module.
+- Wrap every API call with base error handling:
+  - catch transport errors
+  - normalize status/message
+  - return typed safe result or throw typed error
+- Define TypeScript types/interfaces for every request/response payload.
+- Keep endpoint functions small and single-purpose.
+- No direct fetch/axios usage in UI components; consume only api functions.
+- Add JSDoc or TS docs for side effects and expected failures.
+
+## Example Pattern
+
+```ts
+type BookingResponse = { id: string; status: "booked" | "cancelled" };
+
+export async function createBooking(payload: CreateBookingInput): Promise<BookingResponse> {
+  try {
+    const { data } = await apiClient.post<BookingResponse>("/bookings", payload);
+    return data;
+  } catch (error) {
+    throw normalizeApiError(error);
+  }
+}
+```

@@ -1,5 +1,5 @@
 import { WEEK_DAYS, buildBaseSlots, getSlotPlan, isDayActive, setSlotPlan, slotIsOccupied } from "../core/calendar.js";
-import { formatDate, addMinutes, toMinutes } from "../utils/date.js";
+import { formatDate } from "../utils/date.js";
 import { qs, qsa } from "../utils/dom.js";
 import { saveDb } from "../core/store.js";
 import { bookingBadge } from "../components/index.js";
@@ -247,6 +247,7 @@ function setupAdminEvents(db) {
         endHour: String(fd.get("endHour")),
         slotMinutes: Number(fd.get("slotMinutes")),
         activeDays: qsa("#active-days input:checked").map((x) => Number(x.value)),
+        slotPlans: db.settings.slotPlans || {},
       };
       saveDb(db);
       alert("Impostazioni salvate.");

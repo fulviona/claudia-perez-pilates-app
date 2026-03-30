@@ -171,6 +171,7 @@ function renderBookingOptions(db, state) {
 
   selectedLabel.textContent = `Giorno selezionato: ${state.selectedDate}`;
   const selectedCourseId = courseSelect.value || db.courses[0]?.id;
+  const course = db.courses.find((c) => c.id === selectedCourseId);
   let slots = selectedCourseId ? availableSlots(db, state.selectedDate, selectedCourseId) : [];
 
   // Vincolo: per la data di oggi, niente slot in passato.
@@ -184,7 +185,6 @@ function renderBookingOptions(db, state) {
     slots = eligible.length ? [eligible[0]] : [];
   }
 
-  const course = db.courses.find((c) => c.id === selectedCourseId);
   slotSelect.innerHTML = slots
     .map((s) => {
       const seats = course?.mode === "group" ? ` - posti liberi: ${s.remaining}/${s.capacity}` : "";
@@ -193,6 +193,12 @@ function renderBookingOptions(db, state) {
     .join("");
   bookBtn.disabled = slots.length === 0;
   courseSelect.onchange = () => renderBookingOptions(db, state);
+}
+
+function canCancelAppointment(appointment) {
+  const start = new Date(`${appointment.date}T${appointment.startTime}:00`);
+  const cutoff = new Date(start.getTime() - 30 * 60 * 1000);
+  return new Date() <= cutoff;
 }
 
 function renderMyBookings(db, state) {
@@ -205,9 +211,16 @@ function renderMyBookings(db, state) {
     ? mine
         .map((a) => {
           const course = db.courses.find((c) => c.id === a.courseId);
+          const cancelAllowed = a.status === "booked" && canCancelAppointment(a);
           return `<div class="list-item">
             <div><b>${a.date} ${a.startTime}</b> - ${course?.name || "Corso rimosso"} ${bookingBadge(a.status)}</div>
-            ${a.status === "booked" ? `<button data-cancel="${a.id}">Annulla</button>` : ""}
+            ${
+              a.status === "booked"
+                ? cancelAllowed
+                  ? `<button data-cancel="${a.id}">Annulla</button>`
+                  : `<button disabled title="Annullabile solo entro 30 minuti prima">Annulla non disponibile</button>`
+                : ""
+            }
           </div>`;
         })
         .join("")
@@ -217,6 +230,11 @@ function renderMyBookings(db, state) {
     btn.addEventListener("click", () => {
       const appt = db.appointments.find((a) => a.id === btn.dataset.cancel);
       if (!appt) return;
+      if (!canCancelAppointment(appt)) {
+        alert("Puoi annullare solo fino a 30 minuti prima dell'inizio.");
+        renderClient(db, state);
+        return;
+      }
       appt.status = "cancelled";
       saveDb(db);
       renderClient(db, state);
@@ -269,6 +287,7 @@ function renderClient(db, state) {
       createdAt: new Date().toISOString(),
     });
     saveDb(db);
+    alert("Prenotazione confermata. Ricorda: puoi annullarla entro e non oltre 30 minuti prima dell'inizio sessione.");
     renderClient(db, state);
   };
 }
