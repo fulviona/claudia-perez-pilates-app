@@ -51,13 +51,35 @@
           <h3>Gestione appuntamenti</h3>
           <label>Data <input id="admin-date" type="date" /></label>
           <div class="status-legend">
-            <span><i class="dot dot-planned"></i> Programmato</span>
-            <span><i class="dot dot-busy"></i> Occupato/Bloccato</span>
+            <span><i class="dot dot-planned"></i> Prenotato cliente</span>
+            <span><i class="dot dot-busy"></i> Confermato / In corso / Bloccato</span>
             <span><i class="dot dot-free"></i> Libero</span>
           </div>
           <div id="admin-slots" class="admin-slots"></div>
           <h4>Tutti gli appuntamenti</h4>
           <div id="admin-bookings"></div>
+        </div>
+
+        <div id="attendees-modal" class="modal hidden">
+          <div class="modal-backdrop" data-close-modal="attendees"></div>
+          <div class="modal-content">
+            <div class="modal-header">
+              <h3 id="attendees-modal-title">Prenotati slot</h3>
+              <button class="btn-secondary" id="close-attendees-modal" type="button">Chiudi</button>
+            </div>
+            <div class="modal-grid">
+              <div>
+                <h4>Elenco persone</h4>
+                <div id="attendees-list"></div>
+              </div>
+              <div>
+                <h4>Scheda cliente</h4>
+                <div id="attendee-detail" class="attendee-detail">
+                  <p>Seleziona un nome per vedere i dettagli.</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div id="admin-settings" class="admin-tab">
@@ -99,7 +121,7 @@
     </main>
 
     <footer>
-      <small>Versione 2.2.2 - Powered by FulvioNa</small>
+      <small>Versione 2.3.0 - Powered by FulvioNa</small>
     </footer>
 
     <script type="module" src="./src/main.js"></script>
