@@ -49,6 +49,18 @@ function activeBookingsOnDate(db, dateStr) {
   return db.appointments.filter((a) => a.date === dateStr && a.status !== "cancelled");
 }
 
+function getPlannedSessionsOnDate(db, dateStr) {
+  const plansForDate = db.settings?.slotPlans?.[dateStr] || {};
+  return Object.entries(plansForDate)
+    .map(([startTime, plan]) => {
+      if (!plan || !plan.groupCourseId || plan.blocked) return null;
+      const course = db.courses.find((c) => c.id === plan.groupCourseId);
+      if (!course) return null;
+      return { startTime, duration: course.duration, courseId: course.id };
+    })
+    .filter(Boolean);
+}
+
 export function buildBaseSlots(db) {
   const slots = [];
   let current = db.settings.startHour;
@@ -97,18 +109,26 @@ export function slotIsOccupied(db, dateStr, slotTime) {
   if (plan?.blocked) return true;
   const slotMins = db.settings.slotMinutes;
   const dayBookings = activeBookingsOnDate(db, dateStr);
-  return dayBookings.some((b) => {
+  const bookingOccupies = dayBookings.some((b) => {
     const bDur = getAppointmentDurationMinutes(db, b);
     return bookingOverlaps(slotTime, slotMins, b.startTime, bDur);
   });
+  if (bookingOccupies) return true;
+
+  const plannedSessions = getPlannedSessionsOnDate(db, dateStr);
+  return plannedSessions.some((s) => bookingOverlaps(slotTime, slotMins, s.startTime, s.duration));
 }
 
 function hasAnyOverlap(db, dateStr, startTime, durationMins) {
   const dayBookings = activeBookingsOnDate(db, dateStr);
-  return dayBookings.some((b) => {
+  const bookingsOverlap = dayBookings.some((b) => {
     const bDur = getAppointmentDurationMinutes(db, b);
     return bookingOverlaps(startTime, durationMins, b.startTime, bDur);
   });
+  if (bookingsOverlap) return true;
+
+  const plannedSessions = getPlannedSessionsOnDate(db, dateStr);
+  return plannedSessions.some((s) => bookingOverlaps(startTime, durationMins, s.startTime, s.duration));
 }
 
 export function availableSlots(db, dateStr, courseId) {
@@ -123,6 +143,7 @@ export function availableSlots(db, dateStr, courseId) {
       const plan = getSlotPlan(db, dateStr, slotTime);
       if (plan?.blocked) return [];
       if (plan?.blockPersonal) return [];
+      if (plan?.groupCourseId) return [];
       // vieta se esiste qualsiasi overlap (es. gruppo 8-9 occupa anche 8:30)
       if (hasAnyOverlap(db, dateStr, slotTime, duration)) return [];
       return [{ time: slotTime, remaining: 1, capacity: 1 }];
@@ -142,12 +163,19 @@ export function availableSlots(db, dateStr, courseId) {
     if (slotHasOtherCourseBooking(db, dateStr, slotTime, courseId)) return [];
 
     // Se c'è un booking che collide ma NON è la stessa sessione (stesso corso+stesso startTime) => non disponibile
-    const overlapping = dayBookings.filter((b) => {
+    const overlappingBookings = dayBookings.filter((b) => {
       const bDur = getAppointmentDurationMinutes(db, b);
       return bookingOverlaps(slotTime, course.duration, b.startTime, bDur);
     });
-    const invalidOverlap = overlapping.some((b) => b.courseId !== courseId || b.startTime !== slotTime);
-    if (invalidOverlap) return [];
+    const invalidBookingOverlap = overlappingBookings.some((b) => b.courseId !== courseId || b.startTime !== slotTime);
+    if (invalidBookingOverlap) return [];
+
+    const plannedSessions = getPlannedSessionsOnDate(db, dateStr);
+    const invalidPlannedOverlap = plannedSessions.some((s) => {
+      if (!bookingOverlaps(slotTime, course.duration, s.startTime, s.duration)) return false;
+      return !(s.courseId === courseId && s.startTime === slotTime);
+    });
+    if (invalidPlannedOverlap) return [];
 
     const bookedCount = countBookingsForCourseAtSlot(db, dateStr, slotTime, courseId);
     const remaining = Math.max(0, course.capacity - bookedCount);

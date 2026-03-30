@@ -63,14 +63,20 @@ function renderAdminSlots(db) {
       const plan = getSlotPlan(db, date, s);
       const isBlocked = Boolean(plan?.blocked);
       const isBusy = slotIsOccupied(db, date, s) || isBlocked;
+      const isPlanned = Boolean(plan?.groupCourseId) && !isBlocked;
       const groupCourseId = plan?.groupCourseId || "";
       const blockPersonal = Boolean(plan?.blockPersonal);
+      const plannedCourse = db.courses.find((c) => c.id === groupCourseId);
       const groupOptions =
         `<option value="">— nessun corso gruppo —</option>` +
         groupCourses.map((c) => `<option ${c.id === groupCourseId ? "selected" : ""} value="${c.id}">${c.name}</option>`).join("");
+      const statusText = isBlocked ? "Bloccato" : isBusy ? "Occupato" : isPlanned ? "Programmato" : "Libero";
+      const statusClass = isBlocked || isBusy ? "slot-status busy" : isPlanned ? "slot-status planned" : "slot-status free";
+      const plannedText = plannedCourse ? `<div class="slot-meta">Sessione: ${plannedCourse.name}</div>` : "";
 
       return `<div class="slot-box ${isBusy ? "slot-busy" : "slot-free"}">
-        <div><b>${s}</b> - ${isBlocked ? "Bloccato" : isBusy ? "Occupato" : "Libero"}</div>
+        <div class="slot-header-row"><b>${s}</b><span class="${statusClass}">${statusText}</span></div>
+        ${plannedText}
         <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
           <label style="flex:1; min-width:180px;">
             Corso gruppo

@@ -153,17 +153,24 @@ function renderCalendar(db, state) {
 
 function renderBookingOptions(db, state) {
   const selectedLabel = qs("#selected-day-label");
+  const bookingHelp = qs("#booking-help");
   const courseSelect = qs("#course-select");
   const slotSelect = qs("#slot-select");
   const bookBtn = qs("#book-btn");
   if (!selectedLabel || !courseSelect || !slotSelect || !bookBtn) return;
 
+  const currentCourseId = state.selectedCourseId || courseSelect.value || db.courses[0]?.id;
   courseSelect.innerHTML = db.courses
-    .map((c) => `<option value="${c.id}">${c.name} (${c.mode}, ${c.duration}m, cap.${c.capacity})</option>`)
+    .map((c) => {
+      const duration = c.mode === "personal" ? 60 : c.duration;
+      return `<option value="${c.id}">${c.name} (${c.mode}, ${duration}m, cap.${c.capacity})</option>`;
+    })
     .join("");
+  if (currentCourseId) courseSelect.value = currentCourseId;
 
   if (!state.selectedDate) {
     selectedLabel.textContent = "Seleziona un giorno disponibile dal calendario.";
+    if (bookingHelp) bookingHelp.textContent = "I corsi di gruppo sono disponibili solo nelle sessioni impostate dal backoffice.";
     slotSelect.innerHTML = "";
     bookBtn.disabled = true;
     return;
@@ -171,6 +178,7 @@ function renderBookingOptions(db, state) {
 
   selectedLabel.textContent = `Giorno selezionato: ${state.selectedDate}`;
   const selectedCourseId = courseSelect.value || db.courses[0]?.id;
+  state.selectedCourseId = selectedCourseId;
   const course = db.courses.find((c) => c.id === selectedCourseId);
   let slots = selectedCourseId ? availableSlots(db, state.selectedDate, selectedCourseId) : [];
 
@@ -192,7 +200,23 @@ function renderBookingOptions(db, state) {
     })
     .join("");
   bookBtn.disabled = slots.length === 0;
-  courseSelect.onchange = () => renderBookingOptions(db, state);
+
+  if (bookingHelp) {
+    if (course?.mode === "group") {
+      bookingHelp.textContent = slots.length
+        ? "Sessione di gruppo disponibile: puoi iscriverti solo se ci sono posti liberi."
+        : "Nessuna sessione di gruppo disponibile per questo giorno/corso.";
+    } else {
+      bookingHelp.textContent = slots.length
+        ? "Personal disponibile: puoi prenotare in autonomia il primo orario utile."
+        : "Nessun orario personal disponibile per questo giorno.";
+    }
+  }
+
+  courseSelect.onchange = () => {
+    state.selectedCourseId = courseSelect.value;
+    renderBookingOptions(db, state);
+  };
 }
 
 function canCancelAppointment(appointment) {

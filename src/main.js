@@ -9,6 +9,7 @@ const state = {
   currentUserId: null,
   adminLogged: false,
   selectedDate: null,
+  selectedCourseId: null,
   calendarCursor: new Date(),
   deferredInstallPrompt: null,
 };
