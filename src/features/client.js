@@ -1,5 +1,5 @@
 import { availableSlots, canBookDate, isFutureOrToday, WEEK_DAYS } from "../core/calendar.js";
-import { monthName, formatDate } from "../utils/date.js";
+import { monthName, formatDate, toMinutes } from "../utils/date.js";
 import { qs, qsa, openTabById, setupTabs } from "../utils/dom.js";
 import { saveDb } from "../core/store.js";
 import { bookingBadge } from "../components/index.js";
@@ -171,8 +171,26 @@ function renderBookingOptions(db, state) {
 
   selectedLabel.textContent = `Giorno selezionato: ${state.selectedDate}`;
   const selectedCourseId = courseSelect.value || db.courses[0]?.id;
-  const slots = selectedCourseId ? availableSlots(db, state.selectedDate, selectedCourseId) : [];
-  slotSelect.innerHTML = slots.map((s) => `<option value="${s}">${s}</option>`).join("");
+  let slots = selectedCourseId ? availableSlots(db, state.selectedDate, selectedCourseId) : [];
+
+  // Vincolo: per la data di oggi, niente slot in passato.
+  // Inoltre mostriamo solo il "primo orario successivo libero".
+  const todayStr = formatDate(new Date());
+  // La regola "solo primo slot successivo libero" si applica ai PERSONAL (prenotazione autonoma).
+  if (state.selectedDate === todayStr && course?.mode === "personal") {
+    const now = new Date();
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+    const eligible = slots.filter((s) => toMinutes(s.time) >= nowMins);
+    slots = eligible.length ? [eligible[0]] : [];
+  }
+
+  const course = db.courses.find((c) => c.id === selectedCourseId);
+  slotSelect.innerHTML = slots
+    .map((s) => {
+      const seats = course?.mode === "group" ? ` - posti liberi: ${s.remaining}/${s.capacity}` : "";
+      return `<option value="${s.time}">${s.time}${seats}</option>`;
+    })
+    .join("");
   bookBtn.disabled = slots.length === 0;
   courseSelect.onchange = () => renderBookingOptions(db, state);
 }
@@ -224,8 +242,23 @@ function renderClient(db, state) {
     const startTime = qs("#slot-select").value;
     if (!state.selectedDate || !courseId || !startTime) return;
     if (!isFutureOrToday(state.selectedDate)) return alert("Puoi prenotare solo da oggi in poi.");
-    const stillAvailable = availableSlots(db, state.selectedDate, courseId).includes(startTime);
+    const allSlots = availableSlots(db, state.selectedDate, courseId);
+    const stillAvailable = allSlots.some((s) => s.time === startTime);
     if (!stillAvailable) return alert("Slot non piu disponibile.");
+
+    // Enforcement: per oggi si accetta solo il primo slot libero successivo all'ora corrente.
+    const course = db.courses.find((c) => c.id === courseId);
+    const todayStr = formatDate(new Date());
+    if (state.selectedDate === todayStr && course?.mode === "personal") {
+      const now = new Date();
+      const nowMins = now.getHours() * 60 + now.getMinutes();
+      const eligible = allSlots.filter((s) => toMinutes(s.time) >= nowMins);
+      const nextFree = eligible.length ? eligible[0]?.time : null;
+      if (!nextFree || startTime !== nextFree) {
+        return alert("Per oggi puoi prenotare solo il primo orario disponibile dopo l'ora attuale.");
+      }
+    }
+
     db.appointments.push({
       id: crypto.randomUUID(),
       userId: user.id,

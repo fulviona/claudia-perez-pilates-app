@@ -1,4 +1,4 @@
-import { WEEK_DAYS, isDayActive } from "../core/calendar.js";
+import { WEEK_DAYS, buildBaseSlots, getSlotPlan, isDayActive, setSlotPlan, slotIsOccupied } from "../core/calendar.js";
 import { formatDate, addMinutes, toMinutes } from "../utils/date.js";
 import { qs, qsa } from "../utils/dom.js";
 import { saveDb } from "../core/store.js";
@@ -54,16 +54,73 @@ function renderAdminSlots(db) {
   const date = dateInput.value;
   if (!isDayActive(db, date)) return (slotsBox.innerHTML = "<p>Giorno non attivo.</p>");
 
-  const baseSlots = [];
-  let t = db.settings.startHour;
-  while (toMinutes(t) < toMinutes(db.settings.endHour)) {
-    baseSlots.push(t);
-    t = addMinutes(t, db.settings.slotMinutes);
-  }
-  const busy = db.appointments.filter((a) => a.date === date && a.status !== "cancelled").map((a) => a.startTime);
+  const baseSlots = buildBaseSlots(db);
+
+  const groupCourses = db.courses.filter((c) => c.mode === "group");
+
   slotsBox.innerHTML = baseSlots
-    .map((s) => `<div class="slot-box ${busy.includes(s) ? "slot-busy" : "slot-free"}">${s} - ${busy.includes(s) ? "Occupato" : "Libero"}</div>`)
+    .map((s) => {
+      const plan = getSlotPlan(db, date, s);
+      const isBlocked = Boolean(plan?.blocked);
+      const isBusy = slotIsOccupied(db, date, s) || isBlocked;
+      const groupCourseId = plan?.groupCourseId || "";
+      const blockPersonal = Boolean(plan?.blockPersonal);
+      const groupOptions =
+        `<option value="">— nessun corso gruppo —</option>` +
+        groupCourses.map((c) => `<option ${c.id === groupCourseId ? "selected" : ""} value="${c.id}">${c.name}</option>`).join("");
+
+      return `<div class="slot-box ${isBusy ? "slot-busy" : "slot-free"}">
+        <div><b>${s}</b> - ${isBlocked ? "Bloccato" : isBusy ? "Occupato" : "Libero"}</div>
+        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+          <label style="flex:1; min-width:180px;">
+            Corso gruppo
+            <select data-plan-group="${s}">${groupOptions}</select>
+          </label>
+          <label class="checkbox" style="min-width:170px;">
+            <input type="checkbox" data-plan-block-personal="${s}" ${blockPersonal ? "checked" : ""} />
+            Blocca personal
+          </label>
+          <button class="btn-secondary" data-plan-toggle-block="${s}">${isBlocked ? "Sblocca slot" : "Blocca slot"}</button>
+        </div>
+      </div>`;
+    })
     .join("");
+
+  // Handlers: aggiorna piani slot
+  qsa("[data-plan-group]").forEach((sel) => {
+    sel.addEventListener("change", () => {
+      const time = sel.dataset.planGroup;
+      const plan = getSlotPlan(db, date, time) || {};
+      const val = sel.value;
+      if (!val) delete plan.groupCourseId;
+      else plan.groupCourseId = val;
+      setSlotPlan(db, date, time, Object.keys(plan).length ? plan : null);
+      saveDb(db);
+      renderAdminSlots(db);
+    });
+  });
+
+  qsa("[data-plan-block-personal]").forEach((chk) => {
+    chk.addEventListener("change", () => {
+      const time = chk.dataset.planBlockPersonal;
+      const plan = getSlotPlan(db, date, time) || {};
+      plan.blockPersonal = chk.checked;
+      setSlotPlan(db, date, time, Object.keys(plan).length ? plan : null);
+      saveDb(db);
+      renderAdminSlots(db);
+    });
+  });
+
+  qsa("[data-plan-toggle-block]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const time = btn.dataset.planToggleBlock;
+      const plan = getSlotPlan(db, date, time) || {};
+      plan.blocked = !plan.blocked;
+      setSlotPlan(db, date, time, Object.keys(plan).length ? plan : null);
+      saveDb(db);
+      renderAdminSlots(db);
+    });
+  });
 }
 
 function renderAdminBookings(db) {
