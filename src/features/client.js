@@ -183,14 +183,14 @@ function renderBookingOptions(db, state) {
   let slots = selectedCourseId ? availableSlots(db, state.selectedDate, selectedCourseId) : [];
 
   // Vincolo: per la data di oggi, niente slot in passato.
-  // Inoltre mostriamo solo il "primo orario successivo libero".
+  // Per i personal mostriamo TUTTI gli orari disponibili da ora in poi.
   const todayStr = formatDate(new Date());
-  // La regola "solo primo slot successivo libero" si applica ai PERSONAL (prenotazione autonoma).
+  // La regola si applica ai PERSONAL (prenotazione autonoma).
   if (state.selectedDate === todayStr && course?.mode === "personal") {
     const now = new Date();
     const nowMins = now.getHours() * 60 + now.getMinutes();
     const eligible = slots.filter((s) => toMinutes(s.time) >= nowMins);
-    slots = eligible.length ? [eligible[0]] : [];
+    slots = eligible;
   }
 
   slotSelect.innerHTML = slots
@@ -208,7 +208,7 @@ function renderBookingOptions(db, state) {
         : "Nessuna sessione di gruppo disponibile per questo giorno/corso.";
     } else {
       bookingHelp.textContent = slots.length
-        ? "Personal disponibile: puoi prenotare in autonomia il primo orario utile."
+        ? "Personal disponibile: puoi prenotare in autonomia tutti gli orari liberi da adesso in poi."
         : "Nessun orario personal disponibile per questo giorno.";
     }
   }
@@ -288,16 +288,14 @@ function renderClient(db, state) {
     const stillAvailable = allSlots.some((s) => s.time === startTime);
     if (!stillAvailable) return alert("Slot non piu disponibile.");
 
-    // Enforcement: per oggi si accetta solo il primo slot libero successivo all'ora corrente.
+    // Enforcement: per oggi i personal sono consentiti solo da ora in poi.
     const course = db.courses.find((c) => c.id === courseId);
     const todayStr = formatDate(new Date());
     if (state.selectedDate === todayStr && course?.mode === "personal") {
       const now = new Date();
       const nowMins = now.getHours() * 60 + now.getMinutes();
-      const eligible = allSlots.filter((s) => toMinutes(s.time) >= nowMins);
-      const nextFree = eligible.length ? eligible[0]?.time : null;
-      if (!nextFree || startTime !== nextFree) {
-        return alert("Per oggi puoi prenotare solo il primo orario disponibile dopo l'ora attuale.");
+      if (toMinutes(startTime) < nowMins) {
+        return alert("Per oggi puoi prenotare solo orari successivi all'ora attuale.");
       }
     }
 

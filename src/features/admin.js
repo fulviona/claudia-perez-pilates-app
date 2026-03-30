@@ -77,12 +77,12 @@ function renderAdminSlots(db) {
       return `<div class="slot-box ${isBusy ? "slot-busy" : "slot-free"}">
         <div class="slot-header-row"><b>${s}</b><span class="${statusClass}">${statusText}</span></div>
         ${plannedText}
-        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
-          <label style="flex:1; min-width:180px;">
+        <div class="slot-controls">
+          <label class="slot-control">
             Corso gruppo
             <select data-plan-group="${s}">${groupOptions}</select>
           </label>
-          <label class="checkbox" style="min-width:170px;">
+          <label class="checkbox slot-check">
             <input type="checkbox" data-plan-block-personal="${s}" ${blockPersonal ? "checked" : ""} />
             Blocca personal
           </label>
