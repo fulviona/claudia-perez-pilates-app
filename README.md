@@ -67,4 +67,4 @@ Dettagli refactor: `ARCHITECTURE.md`
 
 In tutte le pagine e presente:
 
-`Versione 2.3.0 - Powered by FulvioNa`
+`Versione 2.3.1 - Powered by FulvioNa`

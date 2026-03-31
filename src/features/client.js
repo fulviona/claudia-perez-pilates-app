@@ -162,8 +162,7 @@ function renderBookingOptions(db, state) {
   const currentCourseId = state.selectedCourseId || courseSelect.value || db.courses[0]?.id;
   courseSelect.innerHTML = db.courses
     .map((c) => {
-      const duration = c.mode === "personal" ? 60 : c.duration;
-      return `<option value="${c.id}">${c.name} (${c.mode}, ${duration}m, cap.${c.capacity})</option>`;
+      return `<option value="${c.id}">${c.name} (${c.mode}, ${c.duration}m, cap.${c.capacity})</option>`;
     })
     .join("");
   if (currentCourseId) courseSelect.value = currentCourseId;

@@ -4,9 +4,9 @@ function initialDb() {
   return {
     users: [],
     courses: [
-      { id: crypto.randomUUID(), name: "Pilates Reformer", duration: 60, capacity: 4, mode: "group" },
-      { id: crypto.randomUUID(), name: "Pilates Matwork", duration: 50, capacity: 8, mode: "group" },
-      { id: crypto.randomUUID(), name: "Personal Pilates", duration: 60, capacity: 1, mode: "personal" },
+      { id: crypto.randomUUID(), name: "Pilates Reformer", duration: 45, capacity: 4, mode: "group" },
+      { id: crypto.randomUUID(), name: "Pilates Matwork", duration: 45, capacity: 8, mode: "group" },
+      { id: crypto.randomUUID(), name: "Personal Pilates", duration: 45, capacity: 1, mode: "personal" },
     ],
     appointments: [],
     settings: {
@@ -29,6 +29,7 @@ export function loadDb() {
     if (!parsed.settings.slotPlans) parsed.settings.slotPlans = {};
     if (!parsed.settings.slotMinutes || parsed.settings.slotMinutes === 30) parsed.settings.slotMinutes = 45;
     if (!parsed.courses) parsed.courses = initialDb().courses;
+    parsed.courses = parsed.courses.map((course) => ({ ...course, duration: 45 }));
     if (!parsed.users) parsed.users = [];
     if (!parsed.appointments) parsed.appointments = [];
     return parsed;

@@ -99,8 +99,6 @@ function countAnyBookingsAtSlot(db, dateStr, timeStr) {
 export function getAppointmentDurationMinutes(db, appointment) {
   const course = db.courses.find((c) => c.id === appointment.courseId);
   if (!course) return db.settings.slotMinutes;
-  // Regola: personal sempre 60 minuti
-  if (course.mode === "personal") return 60;
   return course.duration;
 }
 
@@ -136,9 +134,9 @@ export function availableSlots(db, dateStr, courseId) {
   if (!course) return [];
   const dayBookings = activeBookingsOnDate(db, dateStr);
 
-  // Regola: personal sempre 60 minuti (prenotabili in autonomia, se non bloccati e senza overlap)
+  // Personal prenotabile in autonomia, se non bloccato e senza overlap
   if (course.mode === "personal") {
-    const duration = 60;
+    const duration = course.duration;
     return buildSlotsForCourse(db, dateStr, { ...course, duration }).flatMap((slotTime) => {
       const plan = getSlotPlan(db, dateStr, slotTime);
       if (plan?.blocked) return [];

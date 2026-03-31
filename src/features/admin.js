@@ -13,7 +13,7 @@ function getUserReliabilityMeta(db, userId) {
   const noShow = mine.filter((a) => a.status === "no-show").length;
   const modified = mine.reduce((sum, a) => sum + (a.rescheduledCount || 0), 0);
   const total = mine.length;
-  if (total === 0) return { text: "N/D", band: "new" };
+  if (total < 5) return { text: "N/D", band: "new" };
   const value = Math.max(0, Math.min(100, Math.round(((completed + modified * 0.2) / (total + noShow * 0.8)) * 100)));
   const band = value >= 80 ? "high" : value >= 50 ? "medium" : "low";
   return { text: `${value}%`, band };
@@ -397,22 +397,7 @@ function renderAnalytics(db) {
     const modified = mine.reduce((sum, a) => sum + (a.rescheduledCount || 0), 0);
     const total = mine.length;
 
-    if (total === 0) {
-      return {
-        user: u,
-        total,
-        booked,
-        completed,
-        cancelled,
-        noShow,
-        modified,
-        reliabilityText: "N/D",
-        reliabilityBand: "new",
-      };
-    }
-
-    const reliabilityValue = Math.max(0, Math.min(100, Math.round(((completed + modified * 0.2) / (total + noShow * 0.8)) * 100)));
-    const reliabilityBand = reliabilityValue >= 80 ? "high" : reliabilityValue >= 50 ? "medium" : "low";
+    const reliability = getUserReliabilityMeta(db, u.id);
     return {
       user: u,
       total,
@@ -421,8 +406,8 @@ function renderAnalytics(db) {
       cancelled,
       noShow,
       modified,
-      reliabilityText: `${reliabilityValue}%`,
-      reliabilityBand,
+      reliabilityText: reliability.text,
+      reliabilityBand: reliability.band,
     };
   });
 
