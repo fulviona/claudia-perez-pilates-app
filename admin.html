@@ -65,7 +65,7 @@
             <span><i class="dot dot-free"></i> Libero</span>
           </div>
           <div id="admin-slots" class="admin-slots"></div>
-          <h4>Tutti gli appuntamenti</h4>
+          <h4>Prenotazioni del giorno selezionato</h4>
           <div id="admin-bookings"></div>
         </div>
 
@@ -88,6 +88,38 @@
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+
+        <div id="user-bookings-modal" class="modal hidden">
+          <div class="modal-backdrop" data-close-modal="user-bookings"></div>
+          <div class="modal-content">
+            <div class="modal-header">
+              <h3 id="user-bookings-modal-title">Prenotazioni utente</h3>
+              <button class="btn-secondary" id="close-user-bookings-modal" type="button">Chiudi</button>
+            </div>
+            <div id="user-bookings-list"></div>
+          </div>
+        </div>
+
+        <div id="edit-user-modal" class="modal hidden">
+          <div class="modal-backdrop" data-close-modal="edit-user"></div>
+          <div class="modal-content">
+            <div class="modal-header">
+              <h3 id="edit-user-modal-title">Modifica utente</h3>
+              <button class="btn-secondary" id="close-edit-user-modal" type="button">Chiudi</button>
+            </div>
+            <form id="edit-user-form" class="grid">
+              <input type="hidden" name="userId" />
+              <label>Nome <input name="firstName" type="text" required /></label>
+              <label>Cognome <input name="lastName" type="text" required /></label>
+              <label>Email <input name="email" type="email" required /></label>
+              <label>Cellulare <input name="phone" type="tel" required /></label>
+              <label class="checkbox"><input name="newsletterConsent" type="checkbox" />Newsletter</label>
+              <label class="checkbox"><input name="approved" type="checkbox" />Abilitato prenotazioni</label>
+              <label>Password (lascia vuoto per non cambiare) <input name="password" type="password" minlength="6" /></label>
+              <button type="submit">Salva modifiche</button>
+            </form>
           </div>
         </div>
 
@@ -154,7 +186,7 @@
     </main>
 
     <footer>
-      <small>Versione 2.3.2 - Powered by FulvioNa</small>
+      <small>Versione 2.3.3 - Powered by FulvioNa</small>
     </footer>
 
     <script type="module" src="./src/main.js"></script>

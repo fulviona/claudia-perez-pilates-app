@@ -105,6 +105,7 @@ export function loadDb() {
     if (!parsed.courses) parsed.courses = initialDb().courses;
     parsed.courses = parsed.courses.map((course) => ({ ...course, duration: 45 }));
     if (!parsed.users) parsed.users = [];
+    parsed.users = parsed.users.map((u) => ({ ...u, pushNotificationsEnabled: Boolean(u.pushNotificationsEnabled) }));
     if (!parsed.appointments) parsed.appointments = [];
     if (!parsed.recurringTemplates) parsed.recurringTemplates = [];
     ensureRecurringDefaults(parsed);

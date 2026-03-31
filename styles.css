@@ -101,6 +101,7 @@ body {
 
 .tab-btn,
 .admin-tab-btn,
+.client-tab-btn,
 button {
   border: 1px solid #3f2f86;
   background: #fff;
@@ -113,6 +114,7 @@ button {
 
 .tab-btn.active,
 .admin-tab-btn.active,
+.client-tab-btn.active,
 button:hover {
   background: #3f2f86;
   color: #fff;
@@ -355,7 +357,9 @@ select {
 
 .slot-check-control {
   display: flex;
+  flex-direction: row !important;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
   min-width: 160px;
 }
@@ -591,6 +595,7 @@ footer {
 
   .tab-btn,
   .admin-tab-btn,
+  .client-tab-btn,
   button {
     font-size: 13px;
     padding: 8px 10px;

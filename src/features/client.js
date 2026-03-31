@@ -67,6 +67,7 @@ function handleRegister(db) {
       password,
       privacyConsent: fd.get("privacyConsent") === "on",
       newsletterConsent: fd.get("newsletterConsent") === "on",
+      pushNotificationsEnabled: false,
       approved: false,
       createdAt: new Date().toISOString(),
     });
@@ -357,6 +358,22 @@ function renderRecurringOffers(db, state, user) {
   });
 }
 
+function renderProfileSection(db, state, user) {
+  const passwordForm = qs("#change-password-form");
+  if (!passwordForm) return;
+
+  passwordForm.onsubmit = (e) => {
+    e.preventDefault();
+    const fd = new FormData(passwordForm);
+    const nextPassword = String(fd.get("newPassword")).trim();
+    if (nextPassword.length < 6) return alert("La password deve avere almeno 6 caratteri.");
+    user.password = nextPassword;
+    saveDb(db);
+    passwordForm.reset();
+    alert("Password aggiornata con successo.");
+  };
+}
+
 function renderClient(db, state) {
   const user = db.users.find((u) => u.id === state.currentUserId);
   if (!user) return;
@@ -368,6 +385,7 @@ function renderClient(db, state) {
   renderCalendar(db, state);
   renderBookingOptions(db, state);
   renderRecurringOffers(db, state, user);
+  renderProfileSection(db, state, user);
   renderMyBookings(db, state);
 
   qs("#book-btn").onclick = () => {

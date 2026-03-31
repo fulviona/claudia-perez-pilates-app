@@ -56,6 +56,8 @@ function getUserReliabilityMeta(db, userId) {
 export function bootAdmin(db, state) {
   setupAdminTabs();
   setupAttendeesModal();
+  setupUserBookingsModal();
+  setupEditUserModal(db);
   setupAdminEvents(db);
   setupAdminLogin(db, state);
 }
@@ -96,7 +98,11 @@ function renderUsersTable(db) {
         const reliability = getUserReliabilityMeta(db, u.id);
         return `<div class="list-item">
         <div><b>${u.firstName} ${u.lastName}</b> <span class="reliability-dot ${reliability.band}" title="Affidabilita ${reliability.text}"></span> - ${u.email} - ${u.phone}<br/>Privacy: ${u.privacyConsent ? "si" : "no"} | Newsletter: ${u.newsletterConsent ? "si" : "no"}</div>
-        <button data-approve="${u.id}">${u.approved ? "Disabilita prenotazioni" : "Abilita prenotazioni"}</button>
+        <div>
+          <button class="btn-secondary" data-user-bookings="${u.id}">Prenotazioni utente</button>
+          <button class="btn-secondary" data-edit-user="${u.id}">Modifica dati</button>
+          <button data-approve="${u.id}">${u.approved ? "Disabilita prenotazioni" : "Abilita prenotazioni"}</button>
+        </div>
       </div>`;
       }
     )
@@ -108,6 +114,16 @@ function renderUsersTable(db) {
       user.approved = !user.approved;
       saveDb(db);
       renderAdminAll(db);
+    });
+  });
+  qsa("[data-user-bookings]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      openUserBookingsModal(db, btn.dataset.userBookings);
+    });
+  });
+  qsa("[data-edit-user]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      openEditUserModal(db, btn.dataset.editUser);
     });
   });
 }
@@ -155,7 +171,7 @@ function renderAdminSlots(db) {
       if (isBlocked || hasConfirmed || hasStarted) {
         statusText = "Confermato";
         statusClass = "slot-status busy";
-      } else if (hasBooking && hasBookedPending) {
+      } else if (Boolean(plan?.groupCourseId) || (hasBooking && hasBookedPending)) {
         statusText = "Prenotato";
         statusClass = "slot-status planned";
       }
@@ -179,8 +195,8 @@ function renderAdminSlots(db) {
             <select data-plan-group="${s}">${groupOptions}</select>
           </label>
           <label class="slot-check-control">
-            <input type="checkbox" data-plan-block-personal="${s}" ${blockPersonal ? "checked" : ""} />
             <span>Blocca personal</span>
+            <input type="checkbox" data-plan-block-personal="${s}" ${blockPersonal ? "checked" : ""} />
           </label>
           <button class="btn-secondary" data-plan-toggle-block="${s}">${isBlocked ? "Sblocca slot" : "Blocca slot"}</button>
           <button class="btn-secondary" data-slot-attendees="${s}" type="button">Prenotati (${attendeesCount})</button>
@@ -239,10 +255,105 @@ function setupAttendeesModal() {
   if (backdrop) backdrop.addEventListener("click", closeAttendeesModal);
 }
 
+function setupUserBookingsModal() {
+  const closeBtn = qs("#close-user-bookings-modal");
+  const backdrop = qs('[data-close-modal="user-bookings"]');
+  if (closeBtn) closeBtn.addEventListener("click", closeUserBookingsModal);
+  if (backdrop) backdrop.addEventListener("click", closeUserBookingsModal);
+}
+
 function closeAttendeesModal() {
   const modal = qs("#attendees-modal");
   if (!modal) return;
   modal.classList.add("hidden");
+}
+
+function closeUserBookingsModal() {
+  const modal = qs("#user-bookings-modal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+}
+
+function openUserBookingsModal(db, userId) {
+  const modal = qs("#user-bookings-modal");
+  const title = qs("#user-bookings-modal-title");
+  const list = qs("#user-bookings-list");
+  if (!modal || !title || !list) return;
+  const user = db.users.find((u) => u.id === userId);
+  const userName = user ? `${user.firstName} ${user.lastName}` : "Utente";
+  title.textContent = `Prenotazioni di ${userName}`;
+  const mine = db.appointments
+    .filter((a) => a.userId === userId)
+    .sort((a, b) => new Date(`${a.date}T${a.startTime}`) - new Date(`${b.date}T${b.startTime}`));
+  list.innerHTML = mine.length
+    ? mine
+        .map((a) => {
+          const course = db.courses.find((c) => c.id === a.courseId);
+          return `<div class="list-item"><div><b>${a.date} ${a.startTime}</b> - ${course?.name || "Corso"} ${bookingBadge(a.status)}</div></div>`;
+        })
+        .join("")
+    : "<p>Nessuna prenotazione trovata.</p>";
+  modal.classList.remove("hidden");
+}
+
+function setupEditUserModal(db) {
+  const closeBtn = qs("#close-edit-user-modal");
+  const backdrop = qs('[data-close-modal="edit-user"]');
+  const form = qs("#edit-user-form");
+  if (closeBtn) closeBtn.addEventListener("click", closeEditUserModal);
+  if (backdrop) backdrop.addEventListener("click", closeEditUserModal);
+  if (!form) return;
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const userId = String(fd.get("userId"));
+    const user = db.users.find((u) => u.id === userId);
+    if (!user) return alert("Utente non trovato.");
+    const nextEmail = String(fd.get("email")).trim().toLowerCase();
+    const emailTaken = db.users.some((u) => u.id !== userId && u.email.toLowerCase() === nextEmail);
+    if (emailTaken) return alert("Email gia utilizzata da un altro utente.");
+
+    user.firstName = String(fd.get("firstName")).trim();
+    user.lastName = String(fd.get("lastName")).trim();
+    user.email = nextEmail;
+    user.phone = String(fd.get("phone")).trim();
+    user.newsletterConsent = fd.get("newsletterConsent") === "on";
+    user.approved = fd.get("approved") === "on";
+    const nextPassword = String(fd.get("password") || "").trim();
+    if (nextPassword) {
+      if (nextPassword.length < 6) return alert("La password deve avere almeno 6 caratteri.");
+      user.password = nextPassword;
+    }
+
+    saveDb(db);
+    closeEditUserModal();
+    renderAdminAll(db);
+  });
+}
+
+function closeEditUserModal() {
+  const modal = qs("#edit-user-modal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+}
+
+function openEditUserModal(db, userId) {
+  const modal = qs("#edit-user-modal");
+  const title = qs("#edit-user-modal-title");
+  const form = qs("#edit-user-form");
+  if (!modal || !title || !form) return;
+  const user = db.users.find((u) => u.id === userId);
+  if (!user) return;
+  title.textContent = `Modifica: ${user.firstName} ${user.lastName}`;
+  form.userId.value = user.id;
+  form.firstName.value = user.firstName || "";
+  form.lastName.value = user.lastName || "";
+  form.email.value = user.email || "";
+  form.phone.value = user.phone || "";
+  form.newsletterConsent.checked = Boolean(user.newsletterConsent);
+  form.approved.checked = Boolean(user.approved);
+  form.password.value = "";
+  modal.classList.remove("hidden");
 }
 
 function openAttendeesModal(db, date, time) {
@@ -364,8 +475,12 @@ function openAttendeesModal(db, date, time) {
 
 function renderAdminBookings(db) {
   const box = qs("#admin-bookings");
+  const dateInput = qs("#admin-date");
   if (!box) return;
-  const all = [...db.appointments].sort((a, b) => new Date(`${a.date}T${a.startTime}`) - new Date(`${b.date}T${b.startTime}`));
+  const selectedDate = dateInput?.value || formatDate(new Date());
+  const all = [...db.appointments]
+    .filter((a) => a.date === selectedDate)
+    .sort((a, b) => new Date(`${a.date}T${a.startTime}`) - new Date(`${b.date}T${b.startTime}`));
   box.innerHTML = all.length
     ? all
         .map((a) => {
@@ -388,7 +503,7 @@ function renderAdminBookings(db) {
           </div>`;
         })
         .join("")
-    : "<p>Nessun appuntamento.</p>";
+    : "<p>Nessun appuntamento per la data selezionata.</p>";
 
   qsa("[data-status]").forEach((el) => {
     el.addEventListener("change", () => {
@@ -600,7 +715,11 @@ function renderAdminAll(db) {
 
 function setupAdminEvents(db) {
   const dateInput = qs("#admin-date");
-  if (dateInput) dateInput.addEventListener("change", () => renderAdminSlots(db));
+  if (dateInput)
+    dateInput.addEventListener("change", () => {
+      renderAdminSlots(db);
+      renderAdminBookings(db);
+    });
 
   const availabilityForm = qs("#availability-form");
   if (availabilityForm) {
@@ -687,6 +806,7 @@ function setupAdminEvents(db) {
         password: String(fd.get("password")).trim(),
         privacyConsent: true,
         newsletterConsent: false,
+        pushNotificationsEnabled: false,
         approved: fd.get("approved") === "on",
         createdAt: new Date().toISOString(),
       });

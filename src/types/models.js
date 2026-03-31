@@ -8,6 +8,7 @@
  * @property {string} password
  * @property {boolean} privacyConsent
  * @property {boolean} newsletterConsent
+ * @property {boolean} pushNotificationsEnabled
  * @property {boolean} approved
  * @property {string} createdAt
  */
