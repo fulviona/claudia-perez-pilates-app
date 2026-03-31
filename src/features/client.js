@@ -6,12 +6,31 @@ import { bookingBadge } from "../components/index.js";
 
 export function bootClient(db, state) {
   setupTabs();
+  setupClientBookingTabs();
   handleRegister(db);
   handleLogin(db, state);
   setupResetPasswordDemo(db);
   setupCalendarNav(db, state);
   setupLogout(db, state);
   renderAuth(db, state);
+}
+
+function setupClientBookingTabs() {
+  qsa("[data-client-tab]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      qsa("[data-client-tab]").forEach((x) => x.classList.remove("active"));
+      btn.classList.add("active");
+      qsa(".client-tab").forEach((x) => x.classList.remove("active"));
+      qs(`#client-tab-${btn.dataset.clientTab}`)?.classList.add("active");
+    });
+  });
+}
+
+function nextWeekdayFrom(dateStr, weekday) {
+  const base = new Date(`${dateStr}T00:00:00`);
+  const delta = (weekday - base.getDay() + 7) % 7;
+  base.setDate(base.getDate() + delta);
+  return base;
 }
 
 function renderAuth(db, state) {
@@ -265,6 +284,79 @@ function renderMyBookings(db, state) {
   });
 }
 
+function renderRecurringOffers(db, state, user) {
+  const list = qs("#recurring-client-list");
+  if (!list) return;
+  const templates = (db.recurringTemplates || []).filter((t) => {
+    const course = db.courses.find((c) => c.id === t.courseId);
+    return course?.mode === "group";
+  });
+  if (!templates.length) {
+    list.innerHTML = "<p>Nessun corso ricorrente disponibile.</p>";
+    return;
+  }
+  list.innerHTML = templates
+    .map((t) => {
+      const course = db.courses.find((c) => c.id === t.courseId);
+      const intervalText = Number(t.intervalWeeks) === 2 ? "ogni 2 settimane" : "ogni settimana";
+      return `<div class="list-item">
+        <div><b>${course?.name || "Corso"}</b> - ${intervalText} alle ${t.time} - da ${t.startDate} per ${t.repeatWeeks} settimane</div>
+        <button data-book-recurring="${t.id}" ${user.approved ? "" : "disabled"}>Prenota tutte le prossime</button>
+      </div>`;
+    })
+    .join("");
+
+  qsa("[data-book-recurring]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (!user.approved) return alert("Il tuo account non e ancora abilitato alle prenotazioni.");
+      const template = (db.recurringTemplates || []).find((t) => t.id === btn.dataset.bookRecurring);
+      if (!template) return;
+      const course = db.courses.find((c) => c.id === template.courseId);
+      if (!course) return;
+      const first = nextWeekdayFrom(template.startDate, Number(template.weekday));
+      const interval = Math.max(1, Number(template.intervalWeeks || 1));
+      const weeks = Math.max(1, Number(template.repeatWeeks || 1));
+      const today = formatDate(new Date());
+      let bookedCount = 0;
+      let skippedCount = 0;
+
+      for (let w = 0; w < weeks; w += interval) {
+        const day = new Date(first);
+        day.setDate(day.getDate() + w * 7);
+        const dateStr = formatDate(day);
+        if (dateStr < today) continue;
+        const alreadyBooked = db.appointments.some(
+          (a) => a.userId === user.id && a.date === dateStr && a.startTime === template.time && a.status !== "cancelled"
+        );
+        if (alreadyBooked) {
+          skippedCount += 1;
+          continue;
+        }
+        const slots = availableSlots(db, dateStr, course.id);
+        const canBook = slots.some((s) => s.time === template.time);
+        if (!canBook) {
+          skippedCount += 1;
+          continue;
+        }
+        db.appointments.push({
+          id: crypto.randomUUID(),
+          userId: user.id,
+          courseId: course.id,
+          date: dateStr,
+          startTime: template.time,
+          status: "booked",
+          createdAt: new Date().toISOString(),
+        });
+        bookedCount += 1;
+      }
+
+      saveDb(db);
+      alert(`Prenotazioni ricorrenti completate. Prenotate: ${bookedCount}. Saltate: ${skippedCount}.`);
+      renderClient(db, state);
+    });
+  });
+}
+
 function renderClient(db, state) {
   const user = db.users.find((u) => u.id === state.currentUserId);
   if (!user) return;
@@ -275,6 +367,7 @@ function renderClient(db, state) {
 
   renderCalendar(db, state);
   renderBookingOptions(db, state);
+  renderRecurringOffers(db, state, user);
   renderMyBookings(db, state);
 
   qs("#book-btn").onclick = () => {

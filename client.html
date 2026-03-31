@@ -85,6 +85,13 @@
         <p id="client-welcome"></p>
         <p id="client-approval-status" class="status"></p>
 
+        <div class="tabs client-booking-tabs">
+          <button class="tab-btn active" data-client-tab="single">Prenotazione singola</button>
+          <button class="tab-btn" data-client-tab="recurring">Corsi ricorrenti</button>
+        </div>
+
+        <div id="client-tab-single" class="client-tab active">
+
         <div class="calendar-controls">
           <button id="prev-month">◀</button>
           <h3 id="calendar-month-title"></h3>
@@ -106,6 +113,15 @@
           </label>
           <button id="book-btn">Prenota</button>
         </div>
+        </div>
+
+        <div id="client-tab-recurring" class="client-tab">
+          <div class="booking-panel">
+            <h3>Prenota corsi ricorrenti</h3>
+            <p class="hint">Qui puoi prenotare in una sola volta tutte le prossime date programmate dal backoffice.</p>
+            <div id="recurring-client-list"></div>
+          </div>
+        </div>
 
         <div>
           <h3>I miei appuntamenti</h3>
@@ -115,7 +131,7 @@
     </main>
 
     <footer>
-      <small>Versione 2.3.1 - Powered by FulvioNa</small>
+      <small>Versione 2.3.2 - Powered by FulvioNa</small>
     </footer>
 
     <script type="module" src="./src/main.js"></script>

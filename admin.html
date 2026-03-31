@@ -119,6 +119,29 @@
             <button type="submit">Aggiungi corso</button>
           </form>
           <div id="courses-list"></div>
+
+          <h3>Programmazione corsi ricorrenti</h3>
+          <form id="recurring-form" class="grid">
+            <select name="courseId" id="recurring-course-select" required></select>
+            <input name="startDate" type="date" required />
+            <select name="weekday" required>
+              <option value="1">Lunedi</option>
+              <option value="2">Martedi</option>
+              <option value="3">Mercoledi</option>
+              <option value="4">Giovedi</option>
+              <option value="5">Venerdi</option>
+              <option value="6">Sabato</option>
+              <option value="0">Domenica</option>
+            </select>
+            <input name="time" type="time" required />
+            <select name="intervalWeeks" required>
+              <option value="1">Ogni settimana</option>
+              <option value="2">Ogni 2 settimane (15 giorni)</option>
+            </select>
+            <input name="repeatWeeks" type="number" min="1" max="52" value="12" required placeholder="Numero settimane" />
+            <button type="submit">Crea ricorrenza</button>
+          </form>
+          <div id="recurring-list"></div>
         </div>
 
         <div id="admin-analytics" class="admin-tab">
@@ -131,7 +154,7 @@
     </main>
 
     <footer>
-      <small>Versione 2.3.1 - Powered by FulvioNa</small>
+      <small>Versione 2.3.2 - Powered by FulvioNa</small>
     </footer>
 
     <script type="module" src="./src/main.js"></script>

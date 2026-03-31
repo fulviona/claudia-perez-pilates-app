@@ -144,6 +144,14 @@ button:hover {
   display: block;
 }
 
+.client-tab {
+  display: none;
+}
+
+.client-tab.active {
+  display: block;
+}
+
 form {
   display: flex;
   flex-direction: column;

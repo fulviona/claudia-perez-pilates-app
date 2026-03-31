@@ -6,6 +6,40 @@ import { bookingBadge } from "../components/index.js";
 
 const DEFAULT_ADMIN = { username: "admin", password: "admin123" };
 let reliabilityFilter = "all";
+const WEEKDAY_LABELS = ["Domenica", "Lunedi", "Martedi", "Mercoledi", "Giovedi", "Venerdi", "Sabato"];
+
+function nextWeekdayFrom(dateStr, weekday) {
+  const base = new Date(`${dateStr}T00:00:00`);
+  const delta = (weekday - base.getDay() + 7) % 7;
+  base.setDate(base.getDate() + delta);
+  return base;
+}
+
+function formatDateOnly(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function applyRecurringTemplateToSlotPlans(db, template) {
+  if (!db.settings.slotPlans) db.settings.slotPlans = {};
+  const first = nextWeekdayFrom(template.startDate, Number(template.weekday));
+  const interval = Math.max(1, Number(template.intervalWeeks || 1));
+  const weeks = Math.max(1, Number(template.repeatWeeks || 1));
+  for (let w = 0; w < weeks; w += interval) {
+    const date = new Date(first);
+    date.setDate(date.getDate() + w * 7);
+    const dateStr = formatDateOnly(date);
+    if (!db.settings.slotPlans[dateStr]) db.settings.slotPlans[dateStr] = {};
+    const current = db.settings.slotPlans[dateStr][template.time] || {};
+    db.settings.slotPlans[dateStr][template.time] = {
+      ...current,
+      groupCourseId: current.groupCourseId || template.courseId,
+      recurringTemplateId: template.id,
+    };
+  }
+}
 
 function getUserReliabilityMeta(db, userId) {
   const mine = db.appointments.filter((a) => a.userId === userId);
@@ -222,22 +256,54 @@ function openAttendeesModal(db, date, time) {
   const bookings = db.appointments
     .filter((a) => a.date === date && a.startTime === time && a.status !== "cancelled")
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  const plan = getSlotPlan(db, date, time);
+  const slotCourseId = plan?.groupCourseId || bookings[0]?.courseId || null;
+  const slotCourse = slotCourseId ? db.courses.find((c) => c.id === slotCourseId) : null;
+  const isGroupSlot = slotCourse?.mode === "group";
+  const bookedForSlotCourse = slotCourse
+    ? bookings.filter((a) => a.courseId === slotCourse.id).length
+    : bookings.length;
+  const remainingSeats = isGroupSlot ? Math.max(0, slotCourse.capacity - bookedForSlotCourse) : 0;
+  const bookedUserIds = new Set(bookings.map((b) => b.userId));
+  const eligibleUsers = db.users.filter((u) => !bookedUserIds.has(u.id));
 
-  if (!bookings.length) {
-    list.innerHTML = "<p>Nessun prenotato su questo slot.</p>";
-    detail.innerHTML = "<p>Seleziona un nome per vedere i dettagli.</p>";
-    modal.classList.remove("hidden");
-    return;
+  const slotInfo = slotCourse
+    ? `<p><b>Corso:</b> ${slotCourse.name}</p>`
+    : "<p><b>Corso:</b> non definito per questo slot.</p>";
+  const seatInfo = isGroupSlot
+    ? `<p><b>Posti:</b> ${bookedForSlotCourse}/${slotCourse.capacity} prenotati - disponibili: ${remainingSeats}</p>`
+    : "";
+  const manualAddForm = isGroupSlot
+    ? `
+      <div class="attendee-detail">
+        <p><b>Aggiungi utente a questo corso</b></p>
+        ${
+          remainingSeats > 0
+            ? `<label>Seleziona utente
+                <select id="attendees-add-user">
+                  <option value="">-- scegli utente --</option>
+                  ${eligibleUsers.map((u) => `<option value="${u.id}">${u.firstName} ${u.lastName} - ${u.email}</option>`).join("")}
+                </select>
+              </label>
+              <button class="btn-secondary" id="attendees-add-user-btn" type="button">Aggiungi prenotazione</button>`
+            : "<p>Capienza raggiunta: non ci sono posti liberi.</p>"
+        }
+      </div>
+    `
+    : "";
+
+  list.innerHTML = `${slotInfo}${seatInfo}${manualAddForm}${bookings.length ? "" : "<p>Nessun prenotato su questo slot.</p>"}`;
+
+  if (bookings.length) {
+    list.innerHTML += bookings
+      .map((b) => {
+        const user = db.users.find((u) => u.id === b.userId);
+        const label = user ? `${user.firstName} ${user.lastName}` : "Utente sconosciuto";
+        const reliability = user ? getUserReliabilityMeta(db, user.id) : { text: "N/D", band: "new" };
+        return `<button class="attendee-item" type="button" data-attendee-user="${b.userId}" data-attendee-booking="${b.id}">${label} <span class="reliability-dot ${reliability.band}" title="Affidabilita ${reliability.text}"></span></button>`;
+      })
+      .join("");
   }
-
-  list.innerHTML = bookings
-    .map((b) => {
-      const user = db.users.find((u) => u.id === b.userId);
-      const label = user ? `${user.firstName} ${user.lastName}` : "Utente sconosciuto";
-      const reliability = user ? getUserReliabilityMeta(db, user.id) : { text: "N/D", band: "new" };
-      return `<button class="attendee-item" type="button" data-attendee-user="${b.userId}" data-attendee-booking="${b.id}">${label} <span class="reliability-dot ${reliability.band}" title="Affidabilita ${reliability.text}"></span></button>`;
-    })
-    .join("");
 
   qsa("[data-attendee-user]").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -258,8 +324,41 @@ function openAttendeesModal(db, date, time) {
     });
   });
 
+  const addBtn = qs("#attendees-add-user-btn");
+  const addUserSelect = qs("#attendees-add-user");
+  if (addBtn && addUserSelect && isGroupSlot) {
+    addBtn.addEventListener("click", () => {
+      const userId = addUserSelect.value;
+      if (!userId) return alert("Seleziona un utente.");
+      if (!slotCourse) return alert("Corso non valido per questo slot.");
+      const alreadyBooked = db.appointments.some(
+        (a) => a.userId === userId && a.date === date && a.startTime === time && a.status !== "cancelled"
+      );
+      if (alreadyBooked) return alert("Utente gia prenotato su questo slot.");
+      const currentCount = db.appointments.filter(
+        (a) => a.date === date && a.startTime === time && a.courseId === slotCourse.id && a.status !== "cancelled"
+      ).length;
+      if (currentCount >= slotCourse.capacity) return alert("Capienza raggiunta.");
+
+      db.appointments.push({
+        id: crypto.randomUUID(),
+        userId,
+        courseId: slotCourse.id,
+        date,
+        startTime: time,
+        status: "booked",
+        createdAt: new Date().toISOString(),
+      });
+      saveDb(db);
+      renderAdminSlots(db);
+      renderAdminBookings(db);
+      openAttendeesModal(db, date, time);
+    });
+  }
+
   const firstUserBtn = qs("[data-attendee-user]");
   if (firstUserBtn) firstUserBtn.click();
+  else detail.innerHTML = "<p>Seleziona un nome per vedere i dettagli.</p>";
   modal.classList.remove("hidden");
 }
 
@@ -332,6 +431,7 @@ function renderSettingsForm(db) {
 
 function renderCourses(db) {
   const box = qs("#courses-list");
+  const recurringSelect = qs("#recurring-course-select");
   if (!box) return;
   box.innerHTML = db.courses
     .map(
@@ -371,6 +471,50 @@ function renderCourses(db) {
       const hasBooking = db.appointments.some((a) => a.courseId === btn.dataset.deleteCourse && a.status !== "cancelled");
       if (hasBooking) return alert("Non puoi eliminare un corso con appuntamenti attivi.");
       db.courses = db.courses.filter((c) => c.id !== btn.dataset.deleteCourse);
+      saveDb(db);
+      renderAdminAll(db);
+    });
+  });
+
+  if (recurringSelect) {
+    recurringSelect.innerHTML = db.courses
+      .filter((c) => c.mode === "group")
+      .map((c) => `<option value="${c.id}">${c.name} (${c.capacity} posti)</option>`)
+      .join("");
+  }
+}
+
+function renderRecurringTemplates(db) {
+  const list = qs("#recurring-list");
+  if (!list) return;
+  const templates = db.recurringTemplates || [];
+  if (!templates.length) {
+    list.innerHTML = "<p>Nessuna ricorrenza configurata.</p>";
+    return;
+  }
+  list.innerHTML = templates
+    .map((t) => {
+      const course = db.courses.find((c) => c.id === t.courseId);
+      const intervalTxt = Number(t.intervalWeeks) === 2 ? "ogni 2 settimane" : "ogni settimana";
+      return `<div class="list-item">
+        <div><b>${course?.name || "Corso rimosso"}</b> - ${WEEKDAY_LABELS[Number(t.weekday)]} ore ${t.time} - da ${t.startDate} - ${intervalTxt} - ${t.repeatWeeks} settimane</div>
+        <button data-delete-recurring="${t.id}">Elimina ricorrenza</button>
+      </div>`;
+    })
+    .join("");
+
+  qsa("[data-delete-recurring]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.deleteRecurring;
+      db.recurringTemplates = (db.recurringTemplates || []).filter((t) => t.id !== id);
+      Object.keys(db.settings.slotPlans || {}).forEach((date) => {
+        Object.keys(db.settings.slotPlans[date] || {}).forEach((time) => {
+          const plan = db.settings.slotPlans[date][time];
+          if (plan?.recurringTemplateId === id) {
+            delete db.settings.slotPlans[date][time];
+          }
+        });
+      });
       saveDb(db);
       renderAdminAll(db);
     });
@@ -450,6 +594,7 @@ function renderAdminAll(db) {
   renderAdminBookings(db);
   renderSettingsForm(db);
   renderCourses(db);
+  renderRecurringTemplates(db);
   renderAnalytics(db);
 }
 
@@ -489,6 +634,36 @@ function setupAdminEvents(db) {
       });
       saveDb(db);
       e.target.reset();
+      renderAdminAll(db);
+    });
+  }
+
+  const recurringForm = qs("#recurring-form");
+  if (recurringForm) {
+    if (recurringForm.startDate && !recurringForm.startDate.value) recurringForm.startDate.value = formatDate(new Date());
+    recurringForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const template = {
+        id: crypto.randomUUID(),
+        courseId: String(fd.get("courseId")),
+        startDate: String(fd.get("startDate")),
+        weekday: Number(fd.get("weekday")),
+        time: String(fd.get("time")),
+        intervalWeeks: Number(fd.get("intervalWeeks")),
+        repeatWeeks: Number(fd.get("repeatWeeks")),
+        createdAt: new Date().toISOString(),
+      };
+      const course = db.courses.find((c) => c.id === template.courseId);
+      if (!course || course.mode !== "group") return alert("Seleziona un corso di gruppo valido.");
+      if (!template.startDate || !template.time) return alert("Data e ora sono obbligatorie.");
+      if (template.repeatWeeks < 1) return alert("Numero settimane non valido.");
+      if (!db.recurringTemplates) db.recurringTemplates = [];
+      db.recurringTemplates.push(template);
+      applyRecurringTemplateToSlotPlans(db, template);
+      saveDb(db);
+      recurringForm.reset();
+      if (recurringForm.startDate) recurringForm.startDate.value = formatDate(new Date());
       renderAdminAll(db);
     });
   }
