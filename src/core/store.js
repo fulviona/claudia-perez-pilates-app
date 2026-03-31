@@ -12,7 +12,7 @@ function initialDb() {
     settings: {
       startHour: "08:00",
       endHour: "20:00",
-      slotMinutes: 30,
+      slotMinutes: 45,
       activeDays: [1, 2, 3, 4, 5, 6],
       slotPlans: {},
     },
@@ -27,6 +27,7 @@ export function loadDb() {
     // Soft migrations (keep existing data)
     if (!parsed.settings) parsed.settings = initialDb().settings;
     if (!parsed.settings.slotPlans) parsed.settings.slotPlans = {};
+    if (!parsed.settings.slotMinutes || parsed.settings.slotMinutes === 30) parsed.settings.slotMinutes = 45;
     if (!parsed.courses) parsed.courses = initialDb().courses;
     if (!parsed.users) parsed.users = [];
     if (!parsed.appointments) parsed.appointments = [];

@@ -58,10 +58,13 @@ function renderUsersTable(db) {
   if (!db.users.length) return (el.innerHTML = "<p>Nessun utente registrato.</p>");
   el.innerHTML = db.users
     .map(
-      (u) => `<div class="list-item">
-        <div><b>${u.firstName} ${u.lastName}</b> - ${u.email} - ${u.phone}<br/>Privacy: ${u.privacyConsent ? "si" : "no"} | Newsletter: ${u.newsletterConsent ? "si" : "no"}</div>
+      (u) => {
+        const reliability = getUserReliabilityMeta(db, u.id);
+        return `<div class="list-item">
+        <div><b>${u.firstName} ${u.lastName}</b> <span class="reliability-dot ${reliability.band}" title="Affidabilita ${reliability.text}"></span> - ${u.email} - ${u.phone}<br/>Privacy: ${u.privacyConsent ? "si" : "no"} | Newsletter: ${u.newsletterConsent ? "si" : "no"}</div>
         <button data-approve="${u.id}">${u.approved ? "Disabilita prenotazioni" : "Abilita prenotazioni"}</button>
-      </div>`
+      </div>`;
+      }
     )
     .join("");
   qsa("[data-approve]").forEach((btn) => {
@@ -332,9 +335,37 @@ function renderCourses(db) {
   if (!box) return;
   box.innerHTML = db.courses
     .map(
-      (c) => `<div class="list-item"><div><b>${c.name}</b> - ${c.mode} - ${c.duration} min - capienza ${c.capacity}</div><button data-delete-course="${c.id}">Elimina</button></div>`
+      (c) => `<div class="list-item"><div><b>${c.name}</b> - ${c.mode} - ${c.duration} min - capienza ${c.capacity}</div><div><button class="btn-secondary" data-edit-course="${c.id}">Modifica</button> <button data-delete-course="${c.id}">Elimina</button></div></div>`
     )
     .join("");
+  qsa("[data-edit-course]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const course = db.courses.find((c) => c.id === btn.dataset.editCourse);
+      if (!course) return;
+      const nextName = prompt("Nome corso:", course.name);
+      if (nextName === null) return;
+      const nextDurationRaw = prompt("Durata (minuti):", String(course.duration));
+      if (nextDurationRaw === null) return;
+      const nextCapacityRaw = prompt("Capienza:", String(course.capacity));
+      if (nextCapacityRaw === null) return;
+      const nextModeRaw = prompt("Tipo corso (group/personal):", course.mode);
+      if (nextModeRaw === null) return;
+
+      const nextDuration = Number(nextDurationRaw);
+      const nextCapacity = Number(nextCapacityRaw);
+      const nextMode = String(nextModeRaw).trim().toLowerCase();
+      if (!String(nextName).trim() || Number.isNaN(nextDuration) || nextDuration < 15) return alert("Durata non valida.");
+      if (Number.isNaN(nextCapacity) || nextCapacity < 1) return alert("Capienza non valida.");
+      if (!["group", "personal"].includes(nextMode)) return alert("Tipo corso non valido. Usa group o personal.");
+
+      course.name = String(nextName).trim();
+      course.duration = nextDuration;
+      course.capacity = nextCapacity;
+      course.mode = nextMode;
+      saveDb(db);
+      renderAdminAll(db);
+    });
+  });
   qsa("[data-delete-course]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const hasBooking = db.appointments.some((a) => a.courseId === btn.dataset.deleteCourse && a.status !== "cancelled");
@@ -470,6 +501,34 @@ function setupAdminEvents(db) {
         duration: Number(fd.get("duration")),
         capacity: Number(fd.get("capacity")),
         mode: String(fd.get("mode")),
+      });
+      saveDb(db);
+      e.target.reset();
+      renderAdminAll(db);
+    });
+  }
+
+  const manualUserForm = qs("#manual-user-form");
+  if (manualUserForm) {
+    manualUserForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const email = String(fd.get("email")).trim().toLowerCase();
+      if (db.users.some((u) => u.email.toLowerCase() === email)) {
+        alert("Esiste gia un cliente con questa email.");
+        return;
+      }
+      db.users.push({
+        id: crypto.randomUUID(),
+        firstName: String(fd.get("firstName")).trim(),
+        lastName: String(fd.get("lastName")).trim(),
+        email,
+        phone: String(fd.get("phone")).trim(),
+        password: String(fd.get("password")).trim(),
+        privacyConsent: true,
+        newsletterConsent: false,
+        approved: fd.get("approved") === "on",
+        createdAt: new Date().toISOString(),
       });
       saveDb(db);
       e.target.reset();

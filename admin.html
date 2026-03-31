@@ -44,6 +44,15 @@
 
         <div id="admin-users" class="admin-tab active">
           <h3>Utenti registrati</h3>
+          <form id="manual-user-form" class="grid">
+            <input name="firstName" type="text" placeholder="Nome" required />
+            <input name="lastName" type="text" placeholder="Cognome" required />
+            <input name="email" type="email" placeholder="Email" required />
+            <input name="phone" type="tel" placeholder="Cellulare" required />
+            <input name="password" type="password" minlength="6" placeholder="Password" required />
+            <label class="checkbox"><input name="approved" type="checkbox" checked />Abilitato prenotazioni</label>
+            <button type="submit">Aggiungi cliente manualmente</button>
+          </form>
           <div id="users-table"></div>
         </div>
 
@@ -90,6 +99,7 @@
               <label>Chiusura <input type="time" name="endHour" required /></label>
               <label>Durata slot base (min) <input type="number" min="15" step="15" name="slotMinutes" required /></label>
             </div>
+            <p class="hint">Consigliato per il tuo setup: <b>45 minuti</b>.</p>
             <fieldset>
               <legend>Giorni attivi</legend>
               <div id="active-days"></div>
